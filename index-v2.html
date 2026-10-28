@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHI LASERI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #06080a; color: #eef2f5;
+    font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; }
+  body.loading { overflow: hidden; }
+
+  #loader { --acc: #3fc3ff; position: fixed; inset: 0; z-index: 100; background: #06080a;
+    transition: opacity 1s ease, visibility 1s; }
+  #loader.done { --acc: #2ee87a; }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+  #scene { display: block; width: 100%; height: 100%; }
+
+  .frame { position: absolute; left: 6.6%; right: 6.6%; top: 14.5%; bottom: 14%;
+    border: 1px solid rgba(160, 200, 230, .22); pointer-events: none; text-transform: uppercase; }
+  .frame i { display: inline-block; width: .75em; height: .75em; border-radius: 50%;
+    background: #4a5058; margin-right: .9em; vertical-align: -.05em; transition: background .3s, box-shadow .3s; }
+  .on i, i.on { background: var(--acc); box-shadow: 0 0 8px var(--acc); }
+
+  .tl { position: absolute; left: 2.7%; top: 6.5%; }
+  .lbl { color: var(--acc); font-weight: 700; font-size: clamp(10px, .8vw, 14px); letter-spacing: .04em; transition: color .3s; }
+  .tl h1 { margin: .55em 0 .25em; font-size: clamp(18px, 1.65vw, 30px); font-weight: 700; letter-spacing: .01em; }
+  .sub { color: #7f8892; font-size: clamp(9px, .75vw, 13px); letter-spacing: .03em; }
+
+  .tr { position: absolute; left: 83.5%; top: 6.3%; color: var(--acc); font-weight: 600;
+    font-size: clamp(9px, .68vw, 12px); white-space: nowrap; transition: color .3s; }
+
+  .bl { position: absolute; left: 6.4%; width: 72%; bottom: 2.4%; }
+  .pass { color: var(--acc); font-weight: 600; font-size: clamp(10px, .75vw, 13px); transition: color .3s; }
+  .row { display: flex; align-items: center; gap: 1.1em; margin: .2em 0 .5em; }
+  .pct { font-size: clamp(32px, 3vw, 58px); font-weight: 600; line-height: 1; min-width: 2.6em;
+    font-variant-numeric: tabular-nums; }
+  .st { font-size: clamp(10px, .78vw, 14px); font-weight: 600; color: #c9d0d6; }
+  .stsub { color: #6f7882; font-weight: 500; font-size: .85em; margin-top: .45em; min-height: 1em; }
+  .bar { height: 3px; background: rgba(255, 255, 255, .1); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: var(--acc); box-shadow: 0 0 10px var(--acc); transition: background .3s; }
+  .steps { display: flex; margin-top: 1.1em; font-size: clamp(9px, .68vw, 12px); font-weight: 600; }
+  .step { width: 13.5%; color: #6b737c; transition: color .3s; white-space: nowrap; }
+  .step.on { color: #e6ecf0; }
+
+  .seq { position: absolute; left: 69%; bottom: 12.5%; font-size: clamp(9px, .72vw, 13px); }
+  .seq .k { color: #6f7882; font-size: .85em; margin-bottom: .5em; }
+  .seq .v { color: #c9d0d6; }
+  .dots { position: absolute; left: 83.5%; bottom: 7.3%; font-size: clamp(6px, .45vw, 8px); }
+  .dots i { margin-right: 1.9em; }
+  .final { position: absolute; left: 84.5%; bottom: 2.4%; width: auto; font-size: clamp(9px, .68vw, 12px); font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .frame { left: 16px; right: 16px; top: 12%; bottom: 10%; }
+    .tr, .seq, .dots, .final { display: none; }
+    .tl { left: 16px; }
+    .bl { left: 16px; right: 16px; width: auto; }
+    .step { width: 25%; }
+  }
+
+  /* Ovdje ide ostatak sajta — prikazuje se kad se loading završi */
+  #site { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box; }
+  #site h2 { font-size: clamp(32px, 6vw, 72px); letter-spacing: .2em; margin: 0; }
+  #site h2 span { color: #3fc3ff; }
+</style>
+</head>
+<body class="loading">
+
+<div id="loader">
+  <canvas id="scene"></canvas>
+  <div class="frame">
+    <div class="tl">
+      <div class="lbl">CHI LASERI // 01</div>
+      <h1>Spajanje materijala</h1>
+      <div class="sub">Automatizovana sekvenca varenja</div>
+    </div>
+    <div class="tr"><i class="on"></i><span id="trStatus">Poravnanje materijala</span></div>
+
+    <div class="bl">
+      <div class="pass">Prolaz 01 / 06</div>
+      <div class="row">
+        <div class="pct"><span id="pct">0</span>%</div>
+        <div class="st"><div id="status">Poravnanje materijala</div><div class="stsub" id="stsub"></div></div>
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="steps">
+        <span class="step on"><i></i>Priprema</span>
+        <span class="step on"><i></i>Poravnanje</span>
+        <span class="step" id="s3"><i></i>Varenje</span>
+        <span class="step" id="s4"><i></i>Provjera</span>
+      </div>
+    </div>
+
+    <div class="seq"><div class="k">Sekvenca</div><div class="v">Frame <span id="frm">01</span> / 06</div></div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="final step" id="final"><i></i><span id="finalTxt">Provjera</span></div>
+  </div>
+</div>
+
+<main id="site">
+  <h2>CHI <span>LASERI</span></h2>
+</main>
+
+<script>
+(() => {
+  const cv = document.getElementById('scene');
+  const ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const loader = $('loader');
+
+  let W, H, S, DPR, bg, ov, X0, X1;
+  const Y = {};
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const mk = () => { const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR;
+    const p = c.getContext('2d'); p.setTransform(DPR, 0, 0, DPR, 0, 0); return [c, p]; };
+
+  // Sprite za dim
+  const smokeImg = document.createElement('canvas');
+  smokeImg.width = smokeImg.height = 128;
+  { const p = smokeImg.getContext('2d'), g = p.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(160,182,215,1)'); g.addColorStop(.5, 'rgba(140,165,205,.45)'); g.addColorStop(1, 'rgba(140,165,205,0)');
+    p.fillStyle = g; p.fillRect(0, 0, 128, 128); }
+
+  // ---------- Layout ----------
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    S = Math.max(Math.min(W / 1672, H / 941), 0.5);
+    Y.top = H * .33; Y.seam = H * .495; Y.bot = H * .645; Y.edge = H * .668;
+    X0 = W * .15; X1 = W * .87;
+    bg = buildBg(); ov = buildOverlay();
+  }
+
+  // ---------- Pozadina, ploče, stol ----------
+  function buildBg() {
+    const [c, p] = mk();
+    seed = 7;
+    let g = p.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0b0f14'); g.addColorStop(.5, '#07090c'); g.addColorStop(1, '#040506');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+
+    // Zamućena radionica (bokeh)
+    for (let i = 0; i < 50; i++) {
+      const x = rnd() * W, y = rnd() < .75 ? rnd() * Y.top : Y.edge + rnd() * (H - Y.edge);
+      const r = (25 + rnd() * 90) * S, warm = rnd() < .5, a = .03 + rnd() * .09;
+      const col = warm ? '210,150,70' : '115,135,160';
+      g = p.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(.6, `rgba(${col},${a * .6})`); g.addColorStop(1, `rgba(${col},0)`);
+      p.fillStyle = g; p.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    for (let i = 0; i < 8; i++) {
+      const x = rnd() * W, w = (20 + rnd() * 70) * S;
+      g = p.createLinearGradient(x - w, 0, x + w, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.5, 'rgba(0,0,0,.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      p.fillStyle = g; p.fillRect(x - w, 0, w * 2, Y.top);
+    }
+
+    // Stol ispod ploče
+    g = p.createLinearGradient(0, Y.edge, 0, H);
+    g.addColorStop(0, '#121417'); g.addColorStop(1, '#050607');
+    p.fillStyle = g; p.fillRect(0, Y.edge, W, H - Y.edge);
+
+    const refl = [[.13, 70], [.31, 50], [.47, 60], [.69, 80], [.86, 45]];
+    for (const [fx, w] of refl) {
+      p.save(); p.translate(fx * W, Y.edge + 40 * S); p.scale(1, 4);
+      g = p.createRadialGradient(0, 0, 0, 0, 0, w * S);
+      g.addColorStop(0, 'rgba(200,210,225,.09)'); g.addColorStop(1, 'rgba(200,210,225,0)');
+      p.fillStyle = g; p.beginPath(); p.arc(0, 0, w * S, 0, Math.PI * 2); p.fill(); p.restore();
+    }
+
+    // Ploče
+    const band = (y0, y1) => {
+      g = p.createLinearGradient(0, y0, 0, y1);
+      g.addColorStop(0, '#5d6268'); g.addColorStop(.07, '#40444a'); g.addColorStop(.5, '#2d3034'); g.addColorStop(1, '#3b3f44');
+      p.fillStyle = g; p.fillRect(0, y0, W, y1 - y0);
+    };
+    band(Y.top, Y.seam - 2 * S);
+    band(Y.seam + 3 * S, Y.bot);
+
+    p.save();
+    p.beginPath(); p.rect(0, Y.top, W, Y.bot - Y.top); p.clip();
+    for (const [fx, w] of refl) {
+      const x = fx * W, ww = w * 1.4 * S;
+      g = p.createLinearGradient(x - ww, 0, x + ww, 0);
+      g.addColorStop(0, 'rgba(235,240,245,0)'); g.addColorStop(.5, 'rgba(235,240,245,.22)'); g.addColorStop(1, 'rgba(235,240,245,0)');
+      p.fillStyle = g; p.fillRect(x - ww, Y.top, ww * 2, Y.bot - Y.top);
+    }
+    // Brušene linije
+    for (let i = 0; i < 1400; i++) {
+      const y = Y.top + rnd() * (Y.bot - Y.top), x = rnd() * W, l = (30 + rnd() * 300) * S;
+      p.strokeStyle = rnd() < .5 ? `rgba(255,255,255,${.02 + rnd() * .04})` : `rgba(0,0,0,${.04 + rnd() * .06})`;
+      p.lineWidth = .5 + rnd(); p.beginPath(); p.moveTo(x, y); p.lineTo(x + l, y); p.stroke();
+    }
+    // Hrđa uz spoj
+    for (let i = 0; i < 70; i++) {
+      const x = rnd() * W, y = Y.seam + (rnd() - .5) * 90 * S, r = (15 + rnd() * 50) * S;
+      g = p.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(110,60,25,${.12 + rnd() * .18})`); g.addColorStop(1, 'rgba(110,60,25,0)');
+      p.fillStyle = g; p.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // Tačkice i rupice — gušće uz spoj
+    const n = (W * (Y.bot - Y.top)) / 45;
+    for (let i = 0; i < n; i++) {
+      const near = rnd() < .5;
+      const y = near ? Y.seam + (rnd() + rnd() + rnd() - 1.5) * 60 * S : Y.top + rnd() * (Y.bot - Y.top);
+      const x = rnd() * W, r = (.4 + rnd() * (near ? 2.2 : 1.3)) * S;
+      p.fillStyle = rnd() < .8 ? `rgba(8,6,5,${.35 + rnd() * .5})` : `rgba(255,255,255,${.1 + rnd() * .2})`;
+      p.beginPath(); p.arc(x, y, r, 0, Math.PI * 2); p.fill();
+    }
+    p.restore();
+
+    // Ivice
+    p.strokeStyle = 'rgba(255,255,255,.55)'; p.lineWidth = 1.5 * S;
+    p.beginPath(); p.moveTo(0, Y.top); p.lineTo(W, Y.top); p.stroke();
+    p.fillStyle = '#030304'; p.fillRect(0, Y.seam - 2 * S, W, 5 * S);
+    p.strokeStyle = 'rgba(255,255,255,.22)'; p.lineWidth = 1;
+    p.beginPath(); p.moveTo(0, Y.seam + 3.5 * S); p.lineTo(W, Y.seam + 3.5 * S); p.stroke();
+
+    g = p.createLinearGradient(0, Y.bot, 0, Y.edge);
+    g.addColorStop(0, '#202327'); g.addColorStop(1, '#0a0b0d');
+    p.fillStyle = g; p.fillRect(0, Y.bot, W, Y.edge - Y.bot);
+    p.strokeStyle = 'rgba(255,255,255,.35)'; p.lineWidth = 1;
+    p.beginPath(); p.moveTo(0, Y.bot); p.lineTo(W, Y.bot); p.stroke();
+
+    g = p.createLinearGradient(0, Y.edge, 0, Y.edge + 40 * S);
+    g.addColorStop(0, 'rgba(0,0,0,.7)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    p.fillStyle = g; p.fillRect(0, Y.edge, W, 40 * S);
+
+    // Kapljice na stolu
+    for (let i = 0; i < 30; i++) {
+      const x = rnd() * W, y = Y.edge + (8 + rnd() * 60) * S, r = (3 + rnd() * 7) * S;
+      p.fillStyle = 'rgba(0,0,0,.75)';
+      p.beginPath(); p.ellipse(x, y, r, r * .6, 0, 0, Math.PI * 2); p.fill();
+      p.fillStyle = 'rgba(255,255,255,.22)';
+      p.beginPath(); p.arc(x - r * .3, y - r * .2, r * .25, 0, Math.PI * 2); p.fill();
+    }
+    return c;
+  }
+
+  // Mreža + vinjeta preko svega
+  function buildOverlay() {
+    const [c, p] = mk();
+    const cell = Math.max(62 * S, 36);
+    p.strokeStyle = 'rgba(140,180,210,.055)'; p.lineWidth = 1;
+    p.beginPath();
+    for (let x = cell / 2; x < W; x += cell) { p.moveTo(x | 0, 0); p.lineTo(x | 0, H); }
+    for (let y = cell / 2; y < H; y += cell) { p.moveTo(0, y | 0); p.lineTo(W, y | 0); }
+    p.stroke();
+    const g = p.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.hypot(W, H) * .62);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.75)');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+    return c;
+  }
+
+  // ---------- Šav ----------
+  function capsule(x0, x1, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x0, y - r); ctx.lineTo(x1, y - r);
+    ctx.arc(x1, y, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x0, y + r);
+    ctx.arc(x0, y, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  function drawBead(hx, heat) {
+    const y = Y.seam, r = 9 * S;
+
+    // Zona uticaja toplote — narandžasto/plave obojene trake
+    let g = ctx.createLinearGradient(0, y - 32 * S, 0, y + 32 * S);
+    g.addColorStop(0, 'rgba(150,80,30,0)');
+    g.addColorStop(.17, 'rgba(160,85,30,.4)');
+    g.addColorStop(.3, 'rgba(40,95,210,.55)');
+    g.addColorStop(.4, 'rgba(40,95,210,0)');
+    g.addColorStop(.6, 'rgba(40,95,210,0)');
+    g.addColorStop(.7, 'rgba(40,95,210,.5)');
+    g.addColorStop(.83, 'rgba(160,85,30,.35)');
+    g.addColorStop(1, 'rgba(150,80,30,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, y - 32 * S, hx, 64 * S);
+
+    g = ctx.createLinearGradient(0, y - r, 0, y + r);
+    g.addColorStop(0, '#26282c'); g.addColorStop(.33, '#8c939a'); g.addColorStop(.5, '#cdd2d7');
+    g.addColorStop(.75, '#4b5056'); g.addColorStop(1, '#181a1d');
+    ctx.fillStyle = g; capsule(-r, hx, y, r); ctx.fill();
+
+    // Ljuskice
+    const step = 5.2 * S, rr = r * .95, a = 1.35;
+    const hi = new Path2D(), sh = new Path2D();
+    for (let x = 0; x < hx - 2 * S; x += step) {
+      hi.moveTo(x + rr * Math.cos(-a), y + rr * Math.sin(-a)); hi.arc(x, y, rr, -a, a);
+      const xs = x - 1.6 * S;
+      sh.moveTo(xs + rr * Math.cos(-a), y + rr * Math.sin(-a)); sh.arc(xs, y, rr, -a, a);
+    }
+    ctx.save(); capsule(-r, hx, y, r); ctx.clip();
+    ctx.lineWidth = 1.7 * S; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(sh);
+    ctx.lineWidth = 1.1 * S; ctx.strokeStyle = 'rgba(255,255,255,.62)'; ctx.stroke(hi);
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(0, y - r * .5, hx, r * .2);
+    ctx.restore();
+
+    // Užareni kraj
+    if (heat > .01) {
+      const hot = 240 * S;
+      g = ctx.createLinearGradient(hx - hot, 0, hx, 0);
+      g.addColorStop(0, 'rgba(255,80,20,0)');
+      g.addColorStop(.5, `rgba(255,90,20,${.35 * heat})`);
+      g.addColorStop(.8, `rgba(255,170,60,${.75 * heat})`);
+      g.addColorStop(.95, `rgba(255,235,170,${.95 * heat})`);
+      g.addColorStop(1, `rgba(255,255,240,${heat})`);
+      ctx.fillStyle = g; capsule(Math.max(-r, hx - hot), hx + 2 * S, y, r * 1.05); ctx.fill();
+    }
+  }
+
+  // ---------- Pištolj za varenje ----------
+  function metal(w) {
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    g.addColorStop(0, '#1b1e22'); g.addColorStop(.22, '#9aa3ad'); g.addColorStop(.4, '#eef2f6');
+    g.addColorStop(.55, '#a2a9b1'); g.addColorStop(.8, '#3c4148'); g.addColorStop(1, '#0f1113');
+    return g;
+  }
+  function dark(w) {
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    g.addColorStop(0, '#050506'); g.addColorStop(.3, '#2b2e33'); g.addColorStop(.42, '#4a4f56');
+    g.addColorStop(.7, '#16181b'); g.addColorStop(1, '#040405');
+    return g;
+  }
+  function copper(w, a = 1) {
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    g.addColorStop(0, `rgba(60,30,10,${a})`); g.addColorStop(.35, `rgba(225,150,80,${a})`);
+    g.addColorStop(.5, `rgba(255,215,160,${a})`); g.addColorStop(1, `rgba(50,25,8,${a})`);
+    return g;
+  }
+  function seg(x0, x1, w0, w1, fill) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x0, -w0 / 2); ctx.lineTo(x1, -w1 / 2); ctx.lineTo(x1, w1 / 2); ctx.lineTo(x0, w0 / 2);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawTorch(tx, ty, a, arc) {
+    ctx.save();
+    ctx.translate(tx, ty); ctx.rotate(a); ctx.scale(S, S);
+    // Crijevo
+    seg(330, 1800, 48, 48, dark(48));
+    ctx.lineWidth = 1.2;
+    for (const k of [-15, -6, 4, 13]) {
+      ctx.strokeStyle = 'rgba(255,255,255,.07)';
+      ctx.beginPath(); ctx.moveTo(340, k); ctx.lineTo(1800, k); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.4)';
+    for (let x = 345; x < 1800; x += 13) { ctx.beginPath(); ctx.moveTo(x, -24); ctx.lineTo(x, 24); ctx.stroke(); }
+    // Ručka i mlaznica
+    seg(245, 335, 44, 48, dark(48));
+    seg(230, 245, 40, 40, dark(40));
+    seg(160, 230, 36, 36, metal(36));
+    seg(150, 160, 34, 34, dark(34));
+    seg(90, 150, 32, 32, metal(32));
+    seg(80, 90, 30, 30, dark(30));
+    seg(22, 80, 13, 30, metal(30));
+    seg(22, 80, 13, 30, copper(30, .35));
+    seg(10, 22, 8, 13, '#8fa8cc');
+    seg(0, 10, 4, 7, copper(7));
+    if (arc > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 80);
+      g.addColorStop(0, `rgba(130,170,255,${.7 * arc})`); g.addColorStop(1, 'rgba(130,170,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(-10, -45, 100, 90);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Svjetlo luka ----------
+  function plateLight(x, y, a) {
+    if (a <= .01) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    let g = ctx.createRadialGradient(x, y, 0, x, y, 450 * S);
+    g.addColorStop(0, `rgba(120,150,235,${.16 * a})`); g.addColorStop(1, 'rgba(120,150,235,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 450 * S, y - 450 * S, 900 * S, 900 * S);
+    // Vertikalni odsjaj na ploči i stolu
+    ctx.beginPath(); ctx.rect(0, y, W, H - y); ctx.clip();
+    ctx.translate(x, y); ctx.scale(1, 7);
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, 48 * S);
+    g.addColorStop(0, `rgba(170,195,255,${.3 * a})`); g.addColorStop(1, 'rgba(170,195,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 48 * S, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function arcGlow(x, y, a, ember) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (ember > .01) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 40 * S);
+      g.addColorStop(0, `rgba(255,150,60,${.8 * ember})`); g.addColorStop(1, 'rgba(255,90,20,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - 40 * S, y - 40 * S, 80 * S, 80 * S);
+    }
+    if (a > .01) {
+      const f = .85 + Math.random() * .25;
+      let g = ctx.createRadialGradient(x, y, 0, x, y, 280 * S * f);
+      g.addColorStop(0, `rgba(90,140,255,${.45 * a})`); g.addColorStop(.3, `rgba(70,110,230,${.15 * a})`); g.addColorStop(1, 'rgba(60,100,220,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - 300 * S, y - 300 * S, 600 * S, 600 * S);
+      g = ctx.createRadialGradient(x, y, 0, x, y, 110 * S * f);
+      g.addColorStop(0, `rgba(255,190,130,${.45 * a})`); g.addColorStop(1, 'rgba(255,150,80,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - 110 * S, y - 110 * S, 220 * S, 220 * S);
+      g = ctx.createRadialGradient(x, y, 0, x, y, 32 * S * f);
+      g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(.5, `rgba(235,240,255,${.8 * a})`); g.addColorStop(1, 'rgba(220,230,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - 32 * S, y - 32 * S, 64 * S, 64 * S);
+      for (const [sx, sy, r, al] of [[8, .3, 36, .5], [.3, 4, 26, .35]]) {
+        ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy);
+        g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * S * f);
+        g.addColorStop(0, `rgba(190,210,255,${al * a})`); g.addColorStop(1, 'rgba(190,210,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * S * f, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ---------- Iskre i dim ----------
+  const sparks = [], smoke = [];
+  function spawnSparks(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const tiny = Math.random() < .4;
+      const a = .35 - Math.pow(Math.random(), 1.3) * 2.5;
+      const v = (tiny ? 1 + Math.random() * 3 : 3 + Math.random() * 12) * S;
+      sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0,
+        max: tiny ? 8 + Math.random() * 10 : 15 + Math.random() * 45 });
+    }
+  }
+  function drawSparks() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.life++; s.vy += .18 * S; s.vx *= .99;
+      s.x += s.vx; s.y += s.vy;
+      const t = 1 - s.life / s.max;
+      if (t <= 0) { sparks.splice(i, 1); continue; }
+      ctx.strokeStyle = `rgba(255,${140 + 100 * t | 0},${50 + 80 * t | 0},${t})`;
+      ctx.lineWidth = (.8 + t * 1.4) * S;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 3, s.y - s.vy * 3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawSmoke(x, y, spawn) {
+    if (spawn && Math.random() < .7) {
+      smoke.push({ x: x + (Math.random() - .5) * 12 * S, y: y - 15 * S, vx: (Math.random() * .9 - .2) * S,
+        vy: -(.6 + Math.random() * 1.3) * S, r: (14 + Math.random() * 14) * S, life: 0, max: 90 + Math.random() * 90 });
+    }
+    for (let i = smoke.length - 1; i >= 0; i--) {
+      const s = smoke[i];
+      s.life++; s.x += s.vx; s.y += s.vy; s.vx += .004 * S; s.r += .9 * S;
+      const t = s.life / s.max;
+      if (t >= 1) { smoke.splice(i, 1); continue; }
+      ctx.globalAlpha = .13 * Math.sin(Math.PI * t);
+      ctx.drawImage(smokeImg, s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Napredak ----------
+  // Za stvarno učitavanje: window.CHILoader.set(0..1) iz vlastitog koda.
+  let target = 0, prog = 0, manual = false, finished = false, finishT = 0;
+  let arc = 0, heat = 0, ember = 0;
+  function simulate() {
+    if (manual || target >= 1) return;
+    target = Math.min(1, target + .008 + Math.random() * .07);
+    setTimeout(simulate, 60 + Math.random() * 180);
+  }
+  window.CHILoader = { set(v) { manual = true; target = Math.max(target, Math.min(1, v)); } };
+
+  const PHASES = [[0, 'Poravnanje materijala'], [.1, 'Paljenje luka'], [.3, 'Formiranje šava'],
+                  [.5, 'Spajanje spoja'], [.7, 'Zatvaranje spoja']];
+  const dots = [...$('dots').children];
+  let lastKey = '';
+  function hud() {
+    const pct = Math.floor(prog * 100);
+    const status = finished ? 'Varenje završeno' : PHASES.filter(p => prog >= p[0]).pop()[1];
+    const frm = finished ? 6 : Math.min(5, Math.floor(prog * 5) + 1);
+    const key = pct + status;
+    if (key === lastKey) return;
+    lastKey = key;
+    $('pct').textContent = pct;
+    $('fill').style.width = (prog * 100).toFixed(1) + '%';
+    $('status').textContent = status;
+    $('trStatus').textContent = status;
+    $('stsub').textContent = finished ? 'Termičko spajanje završeno' : prog >= .1 ? 'Termičko spajanje u toku' : '';
+    $('frm').textContent = '0' + frm;
+    dots.forEach((d, i) => d.classList.toggle('on', i < frm));
+    $('s3').classList.toggle('on', prog >= .1);
+    $('s4').classList.toggle('on', finished);
+    $('final').classList.toggle('on', finished);
+    $('finalTxt').textContent = finished ? 'Varenje završeno' : 'Provjera';
+    loader.classList.toggle('done', finished);
+  }
+
+  let time = 0;
+  function frame() {
+    time++;
+    prog += Math.min((target - prog) * .14, .012);
+    if (target >= 1 && 1 - prog < .002) prog = 1;
+    if (prog >= 1 && !finished) { finished = true; finishT = time; ember = 1; }
+
+    if (!finished) { arc = Math.min(1, arc + .08); heat = Math.min(1, heat + .05); }
+    else { arc = Math.max(0, arc - .08); heat = Math.max(0, heat - .012); ember = Math.max(0, ember - .01); }
+
+    const hx = X0 + (X1 - X0) * prog, hy = Y.seam;
+    const lift = finished ? Math.min(1, (time - finishT) / 45) : 0;
+    const ease = lift * lift * (3 - 2 * lift);
+    const ta = -2.08, gap = (8 + ease * 35) * S;
+    const tx = hx + Math.cos(ta) * gap, ty = hy + Math.sin(ta) * gap;
+
+    ctx.drawImage(bg, 0, 0, W, H);
+    drawBead(hx, heat);
+    plateLight(hx, hy, arc);
+    drawSmoke(hx, hy, arc > .3);
+    drawTorch(tx, ty, ta, arc);
+    arcGlow(hx, hy, arc, ember);
+    if (!finished && prog > .002) spawnSparks(hx, hy, 5 + (Math.random() * 6 | 0));
+    else if (ember > .3 && Math.random() < .1) spawnSparks(hx, hy, 1);
+    drawSparks();
+    ctx.drawImage(ov, 0, 0, W, H);
+    hud();
+
+    if (finished && time - finishT === 85) {
+      loader.classList.add('hidden');
+      document.body.classList.remove('loading');
+    }
+    if (!finished || time - finishT < 160) requestAnimationFrame(frame);
+  }
+
+  addEventListener('resize', resize);
+  resize();
+  setTimeout(simulate, 250);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

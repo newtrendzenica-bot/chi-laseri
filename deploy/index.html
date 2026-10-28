@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHI LASERI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/bg.jpg">
+<link rel="preload" as="image" href="assets/weld.png">
+<link rel="preload" as="image" href="assets/torch.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #06080a; color: #eef2f5;
+    font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; }
+  /* Visina sekcije: 100vh ekran + 150vh skrola za varenje + 5 × 100vh za klizanje kroz stranice sajta */
+  #weld { position: relative; height: 750vh; }
+  #loader { --acc: #3fc3ff; position: sticky; top: 0; height: 100vh; overflow: hidden; background: #06080a; }
+  .track { display: flex; width: 600%; height: 100%; will-change: transform; }
+  .panel { position: relative; flex: none; width: calc(100% / 6); height: 100%; overflow: hidden; }
+  #loader.done { --acc: #2ee87a; }
+  #scene { display: block; width: 100%; height: 100%; }
+
+  .hint { position: absolute; left: 50%; bottom: 3.2%; transform: translateX(-50%); display: flex;
+    flex-direction: column; align-items: center; gap: 8px; color: #8a939c; font-size: 11px; font-weight: 600;
+    letter-spacing: .3em; text-transform: uppercase; pointer-events: none; transition: opacity .5s; }
+  .hint.gone { opacity: 0; }
+  .mouse { width: 18px; height: 28px; border: 1.5px solid #8a939c; border-radius: 10px; position: relative; }
+  .mouse::after { content: ''; position: absolute; left: 50%; top: 5px; width: 2px; height: 6px; margin-left: -1px;
+    border-radius: 2px; background: #3fc3ff; animation: wheel 1.6s ease-in-out infinite; }
+  @keyframes wheel { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(9px); } }
+
+  .frame { position: absolute; left: 6.6%; right: 6.6%; top: 14.5%; bottom: 14%;
+    border: 1px solid rgba(160, 200, 230, .22); pointer-events: none; text-transform: uppercase;
+    opacity: 0; transition: opacity .6s; }
+  #loader.ready .frame { opacity: 1; }
+  .frame i { display: inline-block; width: .75em; height: .75em; border-radius: 50%;
+    background: #4a5058; margin-right: .9em; vertical-align: -.05em; transition: background .3s, box-shadow .3s; }
+  .on i, i.on { background: var(--acc); box-shadow: 0 0 8px var(--acc); }
+
+  .tl { position: absolute; left: 2.7%; top: 6.5%; }
+  .lbl { color: var(--acc); font-weight: 700; font-size: clamp(10px, .8vw, 14px); letter-spacing: .04em; transition: color .3s; }
+  .tl h1 { margin: .55em 0 .25em; font-size: clamp(18px, 1.65vw, 30px); font-weight: 700; letter-spacing: .01em;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
+  .sub { color: #8a939c; font-size: clamp(9px, .75vw, 13px); letter-spacing: .03em; }
+
+  .tr { position: absolute; left: 83.5%; top: 6.3%; color: var(--acc); font-weight: 600;
+    font-size: clamp(9px, .68vw, 12px); white-space: nowrap; transition: color .3s; }
+
+  .bl { position: absolute; left: 6.4%; width: 72%; bottom: 2.4%; }
+  .pass { color: var(--acc); font-weight: 600; font-size: clamp(10px, .75vw, 13px); transition: color .3s; }
+  .row { display: flex; align-items: center; gap: 1.1em; margin: .2em 0 .5em; }
+  .pct { font-size: clamp(32px, 3vw, 58px); font-weight: 600; line-height: 1; min-width: 2.6em;
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0, 0, 0, .6); }
+  .st { font-size: clamp(10px, .78vw, 14px); font-weight: 600; color: #c9d0d6; }
+  .stsub { color: #77808a; font-weight: 500; font-size: .85em; margin-top: .45em; min-height: 1em; }
+  .bar { height: 3px; background: rgba(255, 255, 255, .1); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: var(--acc); box-shadow: 0 0 10px var(--acc); transition: background .3s; }
+  .steps { display: flex; margin-top: 1.1em; font-size: clamp(9px, .68vw, 12px); font-weight: 600; }
+  .step { width: 13.5%; color: #6b737c; transition: color .3s; white-space: nowrap; }
+  .step.on { color: #e6ecf0; }
+
+  .seq { position: absolute; left: 69%; bottom: 12.5%; font-size: clamp(9px, .72vw, 13px); }
+  .seq .k { color: #77808a; font-size: .85em; margin-bottom: .5em; }
+  .seq .v { color: #c9d0d6; }
+  .dots { position: absolute; left: 83.5%; bottom: 7.3%; font-size: clamp(6px, .45vw, 8px); }
+  .dots i { margin-right: 1.9em; }
+  .final { position: absolute; left: 84.5%; bottom: 2.4%; width: auto; font-size: clamp(9px, .68vw, 12px); font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .frame { left: 16px; right: 16px; top: 12%; bottom: 10%; }
+    .tr, .seq, .dots, .final { display: none; }
+    .tl { left: 16px; }
+    .bl { left: 16px; right: 16px; width: auto; }
+    .step { width: 25%; }
+  }
+
+  /* ---------- Sajt: svijetli showroom nakon tamne radionice ----------
+     Raspored: svaki panel je jedan ekran, tekst lijevo, stroj ili podaci desno */
+  #loader {
+    --steel: #e7eaed; --plate: #f6f7f8; --ink: #14171b; --mute: #59616b; --line: #c8ced5; --red: #e41720;
+    --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', Consolas, monospace;
+  }
+  .site { background: var(--steel); color: var(--ink); font-family: var(--body); }
+  .site:nth-child(2) { box-shadow: -40px 0 80px rgba(0, 0, 0, .55); }
+  .sp { height: 100%; box-sizing: border-box; overflow-y: auto; display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 72px); align-items: center;
+    padding-block: clamp(84px, 12vh, 124px) clamp(56px, 9vh, 96px);
+    padding-left: max(16px, 6vw); padding-right: max(16px, 6vw); }
+  .eyebrow { font: 600 12px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin: 0; }
+  .site h2 { font: 700 clamp(36px, 5.2vw, 86px)/.94 var(--display); text-transform: uppercase;
+    margin: .3em 0 .32em; text-wrap: balance; }
+  .site h2 em { font-style: normal; color: var(--red); }
+  .lead { font-size: clamp(15px, 1.12vw, 19px); line-height: 1.55; color: var(--mute); max-width: 54ch; margin: 0; }
+  .media { height: 100%; max-height: 64vh; display: grid; place-items: center; min-height: 0; }
+  .media img { max-width: 100%; max-height: 62vh; object-fit: contain; will-change: transform;
+    filter: drop-shadow(0 34px 34px rgba(20, 23, 27, .2)); }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; margin-top: clamp(18px, 3.4vh, 34px); }
+  .btn { font: 600 13px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; padding: 14px 20px;
+    border: 1.5px solid var(--ink); color: var(--ink); text-decoration: none; background: none; cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s; }
+  .btn:hover { background: var(--ink); color: var(--plate); }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.primary:hover { background: #b80f17; border-color: #b80f17; }
+  .site a:focus-visible, .site-nav a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+  .partners { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: clamp(20px, 4vh, 40px); padding-top: 14px;
+    border-top: 1px solid var(--line); font: 500 12px/1.4 var(--mono); color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+  .partners b { color: var(--ink); font-weight: 600; }
+
+  .machines { list-style: none; padding: 0; margin: clamp(14px, 3vh, 28px) 0 0; display: grid;
+    grid-template-columns: 1fr 1fr; column-gap: 28px; border-top: 1px solid var(--line); }
+  .machines li { padding: clamp(9px, 1.5vh, 14px) 0; border-bottom: 1px solid var(--line); }
+  .machines strong { display: block; font: 700 clamp(17px, 1.35vw, 23px)/1.1 var(--display); text-transform: uppercase; }
+  .machines span { font-size: 13.5px; color: var(--mute); }
+
+  .weldcol { display: grid; gap: clamp(12px, 2.4vh, 24px); justify-items: center; min-height: 0; }
+  .weldcol img { max-height: 30vh; max-width: 70%; object-fit: contain; filter: drop-shadow(0 24px 26px rgba(20, 23, 27, .22)); will-change: transform; }
+  /* Natpisna pločica stroja s tehničkim podacima */
+  .plate { width: 100%; max-width: 460px; box-sizing: border-box; padding: 22px 28px 18px; border: 1px solid #a7aeb6; border-radius: 3px;
+    font-family: var(--mono); color: var(--ink);
+    background:
+      radial-gradient(circle at 12px 12px, #8f979f 2.5px, #eef0f2 3.5px, transparent 4.5px),
+      radial-gradient(circle at calc(100% - 12px) 12px, #8f979f 2.5px, #eef0f2 3.5px, transparent 4.5px),
+      radial-gradient(circle at 12px calc(100% - 12px), #8f979f 2.5px, #eef0f2 3.5px, transparent 4.5px),
+      radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #8f979f 2.5px, #eef0f2 3.5px, transparent 4.5px),
+      linear-gradient(165deg, #dfe3e6, #c4cad0);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75), 0 22px 34px -20px rgba(20, 23, 27, .45); }
+  .plate h3 { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 4px; padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--ink); font: 600 12px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  .plate h3 span { color: var(--red); }
+  .plate dl { display: grid; grid-template-columns: auto 1fr; margin: 0; }
+  .plate dt, .plate dd { padding: 7px 0; border-bottom: 1px dashed rgba(20, 23, 27, .22); }
+  .plate dt { padding-right: 16px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #48505a; align-self: center; }
+  .plate dd { margin: 0; text-align: right; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .plate dl > :nth-last-child(-n+2) { border-bottom: 0; }
+
+  .services { list-style: none; padding: 0; margin: clamp(12px, 2.6vh, 26px) 0 0; display: grid; border-top: 1px solid var(--line); }
+  .services li { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 16px; align-items: baseline;
+    padding: clamp(9px, 1.6vh, 14px) 0; border-bottom: 1px solid var(--line); }
+  .services strong { font: 700 clamp(17px, 1.3vw, 22px)/1.1 var(--display); text-transform: uppercase; }
+  .services span { font-size: 14px; line-height: 1.45; color: var(--mute); }
+  .shop { background: var(--plate); border: 1px solid var(--line); padding: clamp(18px, 3vh, 32px); display: grid; gap: 14px; justify-items: start; }
+  .shop img { max-height: 24vh; max-width: 40%; justify-self: center; object-fit: contain; will-change: transform; }
+  .shop h3 { margin: 0; font: 700 clamp(22px, 1.8vw, 30px)/1 var(--display); text-transform: uppercase; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+  .chips li { font: 500 12.5px/1 var(--mono); padding: 8px 10px; border: 1px solid var(--line); background: var(--steel); }
+
+  .offices { display: grid; gap: 14px; }
+  .office { background: var(--plate); border: 1px solid var(--line); padding: clamp(16px, 2.6vh, 26px) clamp(18px, 2vw, 28px); display: grid; gap: 4px; }
+  .office h3 { margin: 0 0 6px; font: 700 clamp(20px, 1.6vw, 26px)/1 var(--display); text-transform: uppercase; display: flex; justify-content: space-between; gap: 10px; }
+  .office h3 span { font: 600 11px/1.6 var(--mono); letter-spacing: .12em; color: var(--red); }
+  .office p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--mute); }
+  .office a { color: var(--ink); font-weight: 600; text-decoration: none; font-variant-numeric: tabular-nums; }
+  .office a:hover { color: var(--red); }
+  .social { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+  .social a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+  .social a:hover { color: var(--red); border-color: var(--red); }
+  .copy { margin-top: 18px; font: 500 11px var(--mono); color: var(--mute); letter-spacing: .06em; }
+
+  /* Navigacija sajta i traka napretka */
+  .site-nav { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 24px;
+    padding-block: calc(14px + env(safe-area-inset-top, 0px)) 14px;
+    padding-left: max(16px, 6vw); padding-right: max(16px, 6vw);
+    background: rgba(231, 234, 237, .88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line); font-family: var(--body);
+    opacity: 0; visibility: hidden; transition: opacity .35s, visibility .35s; }
+  .site-nav.show { opacity: 1; visibility: visible; }
+  .site-nav .logo { height: 30px; width: auto; display: block; }
+  .site-nav .links { display: flex; gap: clamp(14px, 2vw, 30px); margin-left: auto; }
+  .site-nav .links a { color: var(--mute); text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; padding: 6px 0; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s; }
+  .site-nav .links a:hover, .site-nav .links a.on { color: var(--ink); border-color: var(--red); }
+  .site-nav .btn { padding: 11px 16px; font-size: 12px; }
+  .site-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; z-index: 5; background: var(--red); }
+
+  /* Strelice naprijed / nazad */
+  .pager { position: absolute; z-index: 5; right: max(16px, 6vw); bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 10px; font: 600 12px/1 var(--mono); color: var(--ink); letter-spacing: .1em;
+    opacity: 0; visibility: hidden; transition: opacity .35s, visibility .35s; }
+  .pager.show { opacity: 1; visibility: visible; }
+  .pager button { width: 46px; height: 46px; display: grid; place-items: center; padding: 0; cursor: pointer;
+    background: var(--plate); color: var(--ink); border: 1.5px solid var(--ink); transition: background .2s, color .2s, border-color .2s; }
+  .pager button:hover { background: var(--red); border-color: var(--red); color: #fff; }
+  .pager button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+  .pager button:disabled { opacity: .3; cursor: default; background: var(--plate); color: var(--ink); border-color: var(--ink); }
+  .pager svg { width: 18px; height: 18px; }
+  .pager span { min-width: 5.2em; text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* Animacije ulaska: laserska linija prelazi preko stranice i otkriva sadržaj */
+  .sp { position: relative; z-index: 1; }
+  .scan { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; z-index: 3; pointer-events: none; opacity: 0;
+    background: linear-gradient(180deg, transparent, #ff3b30 12%, #fff3ee 50%, #ff3b30 88%, transparent);
+    box-shadow: 0 0 12px 2px rgba(228, 23, 32, .7), 0 0 50px 8px rgba(228, 23, 32, .3); }
+  .scan::after { content: ''; position: absolute; top: 0; bottom: 0; right: 2px; width: 18vw;
+    background: linear-gradient(90deg, rgba(228, 23, 32, 0), rgba(228, 23, 32, .07)); }
+  .bigword { position: absolute; left: 4vw; bottom: -3.5vw; z-index: 0; pointer-events: none; white-space: nowrap;
+    font: 700 21vw/1 var(--display); color: transparent;
+    -webkit-text-stroke: 1.5px rgba(20, 23, 27, .09); will-change: transform; }
+
+  @media (max-width: 900px) {
+    .bigword { font-size: 38vw; bottom: -6vw; }
+    .sp { grid-template-columns: 1fr; align-content: safe center; gap: 18px; }
+    .media img { max-height: 26vh; }
+    .weldcol img, .shop img { display: none; }
+    .site-nav .links { display: none; }
+    .site-nav .btn { margin-left: auto; }
+    .services li { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (max-width: 520px) {
+    .machines { grid-template-columns: 1fr; }
+    .machines span, .services span, .chips { display: none; }
+    .site h2 { font-size: clamp(32px, 10vw, 44px); }
+    .lead { font-size: 15px; }
+    .plate { padding: 18px 20px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<section id="weld">
+<div id="loader">
+<div class="track" id="track">
+<div class="panel">
+  <canvas id="scene"></canvas>
+  <div class="hint" id="hint"><div class="mouse"></div>Skrolaj</div>
+  <div class="frame">
+    <div class="tl">
+      <div class="lbl">CHI LASERI // 01</div>
+      <h1>Spajanje materijala</h1>
+      <div class="sub">Automatizovana sekvenca varenja</div>
+    </div>
+    <div class="tr"><i class="on"></i><span id="trStatus">Poravnanje materijala</span></div>
+
+    <div class="bl">
+      <div class="pass">Prolaz 01 / 06</div>
+      <div class="row">
+        <div class="pct"><span id="pct">0</span>%</div>
+        <div class="st"><div id="status">Poravnanje materijala</div><div class="stsub" id="stsub"></div></div>
+      </div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="steps">
+        <span class="step on"><i></i>Priprema</span>
+        <span class="step on"><i></i>Poravnanje</span>
+        <span class="step" id="s3"><i></i>Varenje</span>
+        <span class="step" id="s4"><i></i>Provjera</span>
+      </div>
+    </div>
+
+    <div class="seq"><div class="k">Sekvenca</div><div class="v">Frame <span id="frm">01</span> / 06</div></div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="final step" id="final"><i></i><span id="finalTxt">Provjera</span></div>
+  </div>
+</div>
+
+<!-- Sajt — stranice ulaze sa desne strane, jedna za drugom -->
+<section class="panel site" id="o-nama">
+  <div class="sp">
+    <div>
+      <p class="eyebrow">CHI-TECH d.o.o. · Fiber laseri</p>
+      <h2>Mi brinemo o <em>Vašim mašinama</em></h2>
+      <p class="lead">Prepoznati smo kao jedna od vodećih tvrtki u području servisa i prodaje fiber lasera. Surađujemo s provjerenim partnerima iz Kine i Europe, pa naši strojevi i komponente zadovoljavaju sve uvjete kvalitete i sigurnosti europskog tržišta.</p>
+      <div class="btns">
+        <a class="btn primary" href="#strojevi" data-go="2">Pogledajte strojeve</a>
+        <a class="btn" href="#kontakt" data-go="5">Kontakt</a>
+      </div>
+      <div class="partners"><b>Yawei</b> Siemens · Precitec · IPG · THK · Beckhoff</div>
+    </div>
+    <div class="media"><img data-par src="assets/fiber-laser.png" alt="Fiber laser za rezanje lima"></div>
+  </div>
+</section>
+
+<section class="panel site" id="strojevi">
+  <div class="sp">
+    <div>
+      <p class="eyebrow">Strojevi</p>
+      <h2>Kompletna linija za <em>obradu lima</em></h2>
+      <p class="lead">Yawei je premium proizvođač strojeva za obradu lima, s komponentama Siemens, Precitec, IPG, THK i Beckhoff. Vrijeme je za kvalitetnu automatizaciju vaše proizvodnje.</p>
+      <ul class="machines">
+        <li><strong>Fiber laser</strong><span>Rezanje ploča i cijevi</span></li>
+        <li><strong>Zavarivanje i čišćenje</strong><span>Ručni fiber laseri</span></li>
+        <li><strong>Kutna preša</strong><span>Savijanje lima</span></li>
+        <li><strong>Panel bender</strong><span>Automatsko savijanje panela</span></li>
+        <li><strong>Vakuumski podizač</strong><span>Sigurna manipulacija limom</span></li>
+        <li><strong>Filterske jedinice</strong><span>Odsis dima i prašine</span></li>
+        <li><strong>Kompresori</strong><span>Zrak za lasersko rezanje</span></li>
+      </ul>
+    </div>
+    <div class="media"><img data-par src="assets/yawei-laser.png" alt="Yawei fiber laser"></div>
+  </div>
+</section>
+
+<section class="panel site" id="zavarivanje">
+  <div class="sp">
+    <div>
+      <p class="eyebrow">Lasersko zavarivanje i čišćenje</p>
+      <h2>Minimalna toplina. <em>Minimalne deformacije.</em></h2>
+      <p class="lead">Fiber laser unosi vrlo malo topline u materijal, pa se lim pri zavarivanju gotovo ne izobličuje. Isti uređaj skida hrđu i čisti površine. Uređaje za zavarivanje i čišćenje nudimo i u najam.</p>
+      <div class="btns">
+        <a class="btn primary" href="mailto:info@chitech.com.hr?subject=Upit%20za%20najam%20uređaja">Upit za najam</a>
+      </div>
+    </div>
+    <div class="weldcol">
+      <img data-par src="assets/laser-welder.png" alt="Uređaj za lasersko zavarivanje">
+      <div class="plate">
+        <h3>Fiber laser welding <span>CHI-TECH</span></h3>
+        <dl>
+          <dt>Snaga izvora</dt><dd>1000 / 2000 / 3000 W</dd>
+          <dt>Valna duljina</dt><dd>1070 nm</dd>
+          <dt>Fiber kabel</dt><dd>10 m (maks. 15 m)</dd>
+          <dt>Brzina zavarivanja</dt><dd>0–120 mm/s</dd>
+          <dt>Debljina materijala</dt><dd>0,5–3 mm</dd>
+          <dt>Hlađenje</dt><dd>Vodeno</dd>
+          <dt>Radna temperatura</dt><dd>15–35 °C</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel site" id="usluge">
+  <div class="sp">
+    <div>
+      <p class="eyebrow">Usluge</p>
+      <h2>Servis od montaže <em>do retrofita</em></h2>
+      <ul class="services">
+        <li><strong>Montaža i obuka</strong><span>Instalacija stroja, puštanje u rad i obuka vaših operatera.</span></li>
+        <li><strong>Servisne intervencije</strong><span>Brzo otklanjanje kvarova kad stroj stane.</span></li>
+        <li><strong>Redovni servisi</strong><span>Godišnje servisiranje CNC strojeva.</span></li>
+        <li><strong>Retrofit</strong><span>Novo ruho vašeg starog stroja: prenamjena, popravak, podešavanje i nadogradnja.</span></li>
+        <li><strong>Najam uređaja</strong><span>Laseri za zavarivanje i čišćenje u najmu.</span></li>
+      </ul>
+    </div>
+    <div class="shop">
+      <img data-par src="assets/laser-head.png" alt="Fiber laserska glava">
+      <p class="eyebrow">Webshop</p>
+      <h3>Potrošni materijal</h3>
+      <ul class="chips">
+        <li>Zaštitna stakla</li><li>Fokusne leće</li><li>Kolimacijske leće</li><li>Dizne za cijevne lasere</li>
+        <li>Dizne D32 / D28</li><li>Keramički prstenovi</li><li>Fiber laserske glave</li><li>Kapacitivni kablići</li>
+      </ul>
+      <a class="btn" href="https://chitechlaser.com/" target="_blank" rel="noopener">Otvori webshop</a>
+    </div>
+  </div>
+</section>
+
+<section class="panel site" id="kontakt">
+  <div class="sp">
+    <div>
+      <p class="eyebrow">Kontakt</p>
+      <h2>Stroj stoji? <em>Javite se.</em></h2>
+      <p class="lead">Za ponudu, servis ili prijavu kvara pišite nam ili nazovite. Uz sjedište u Hrvatskoj imamo i predstavništvo za Srbiju u Šapcu.</p>
+      <div class="btns">
+        <a class="btn primary" href="mailto:info@chitech.com.hr?subject=Prijava%20kvara">Prijava kvara</a>
+      </div>
+      <div class="social">
+        <a href="https://www.facebook.com/Chi.tech.d.o.o/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.instagram.com/chitech_fiberlaseri/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.linkedin.com/company/chitechlaser" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://www.youtube.com/@chitechd.o.o7540" target="_blank" rel="noopener">YouTube</a>
+      </div>
+    </div>
+    <div class="offices">
+      <div class="office">
+        <h3>Hrvatska <span>Sjedište</span></h3>
+        <p>CHI-TECH d.o.o.<br>Videkovići 46, 10431 Sveta Nedelja</p>
+        <p><a href="tel:+385911114600">+385 91 111 4600</a></p>
+        <p><a href="mailto:info@chitech.com.hr">info@chitech.com.hr</a></p>
+      </div>
+      <div class="office">
+        <h3>Srbija <span>Predstavništvo</span></h3>
+        <p>Roberta Tolingera 108, 15000 Šabac</p>
+        <p><a href="tel:+381653603505">+381 65 360 3505</a></p>
+        <p><a href="mailto:info@chitech.rs">info@chitech.rs</a></p>
+      </div>
+      <p class="copy">© 2026 CHI-TECH d.o.o. · chitechlaser.com</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<nav class="site-nav" id="nav" aria-label="Glavna navigacija">
+  <a href="#o-nama" data-go="1"><img class="logo" src="assets/logo.png" alt="CHI-TECH"></a>
+  <div class="links">
+    <a href="#o-nama" data-go="1">O nama</a>
+    <a href="#strojevi" data-go="2">Strojevi</a>
+    <a href="#zavarivanje" data-go="3">Zavarivanje</a>
+    <a href="#usluge" data-go="4">Usluge</a>
+    <a href="#kontakt" data-go="5">Kontakt</a>
+  </div>
+  <a class="btn primary" href="#kontakt" data-go="5">Prijava kvara</a>
+</nav>
+<div class="site-bar" id="siteBar"></div>
+<div class="pager" id="pager">
+  <button type="button" id="prev" aria-label="Prethodna stranica"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <span id="pgNum">01 / 05</span>
+  <button type="button" id="next" aria-label="Sljedeća stranica"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></button>
+</div>
+</div>
+</section>
+
+<script>
+(() => {
+  const cv = document.getElementById('scene');
+  const ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const loader = $('loader');
+
+  // Scena je u koordinatama fotografije (1672 x 941)
+  const SW = 1672, SH = 941;
+  const SEAM_Y = 467;                 // visina šava
+  const X_START = 345, X_END = 1453;  // put pištolja
+  const WELD_Y0 = 390;                // gdje počinje traka weld.png
+  const TORCH_X0 = 425, TORCH_WX = 730; // torch.png: lijeva ivica i x tačke varenja na izvornoj slici
+  const AX = -0.45, AY = -0.893;      // osa pištolja (prema gore)
+
+  const img = {};
+  const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { img[k] = i; r(); }; i.src = src; });
+
+  let W, H, DPR, sc, oy, camX = null;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    sc = Math.max(W / SW, H / SH);
+    oy = (H - SH * sc) / 2;
+  }
+
+  // Sprite za dim
+  const smokeImg = document.createElement('canvas');
+  smokeImg.width = smokeImg.height = 128;
+  { const p = smokeImg.getContext('2d'), g = p.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(150,175,215,1)'); g.addColorStop(.5, 'rgba(130,158,205,.45)'); g.addColorStop(1, 'rgba(130,158,205,0)');
+    p.fillStyle = g; p.fillRect(0, 0, 128, 128); }
+
+  function radial(x, y, r, stops, sx = 1, sy = 1) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    stops.forEach(([o, c]) => g.addColorStop(o, c));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- Slojevi ----------
+  // Šav ide oštro do pištolja, a obojena zona oko njega se mekano gubi
+  function drawWeld(hx) {
+    const w = img.weld, h = w.height, fade = 70, steps = 14;
+    const b0 = SEAM_Y - 22 - WELD_Y0, b1 = SEAM_Y + 22 - WELD_Y0; // redovi samog šava u weld.png
+    const solid = Math.max(0, hx - fade);
+    if (solid > 0) ctx.drawImage(w, 0, 0, solid, h, 0, WELD_Y0, solid, h);
+    for (let k = 0; k < steps; k++) {
+      const x = solid + k * fade / steps, sw = Math.min(fade / steps, hx - x);
+      if (sw <= 0) break;
+      ctx.globalAlpha = 1 - (k + .5) / steps;
+      ctx.drawImage(w, x, 0, sw, b0, x, WELD_Y0, sw, b0);
+      ctx.drawImage(w, x, b1, sw, h - b1, x, WELD_Y0 + b1, sw, h - b1);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(w, x, b0, sw, b1 - b0, x, WELD_Y0 + b0, sw, b1 - b0);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHot(hx, heat) {
+    if (heat < .01) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    radial(hx - 40, SEAM_Y, 150, [[0, `rgba(255,110,30,${.28 * heat})`], [1, 'rgba(255,90,20,0)']], 1, .28);
+    const len = 190, r = 15;
+    const g = ctx.createLinearGradient(hx - len, 0, hx, 0);
+    g.addColorStop(0, 'rgba(255,60,0,0)');
+    g.addColorStop(.5, `rgba(255,80,15,${.45 * heat})`);
+    g.addColorStop(.85, `rgba(255,170,80,${.85 * heat})`);
+    g.addColorStop(1, `rgba(255,240,210,${heat})`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(hx - len, SEAM_Y - r * .7); ctx.lineTo(hx, SEAM_Y - r);
+    ctx.arc(hx, SEAM_Y, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(hx - len, SEAM_Y + r * .7); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function plateLight(x, a) {
+    if (a < .01) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    radial(x, SEAM_Y, 520, [[0, `rgba(110,150,255,${.2 * a})`], [1, 'rgba(110,150,255,0)']], 1, .75);
+    ctx.beginPath(); ctx.rect(0, SEAM_Y, SW, SH); ctx.clip();
+    radial(x, SEAM_Y, 46, [[0, `rgba(175,200,255,${.42 * a})`], [1, 'rgba(175,200,255,0)']], 1.1, 10);
+    ctx.restore();
+  }
+
+  function drawTorch(hx, lift, a) {
+    const dx = hx - TORCH_WX + AX * lift, dy = AY * lift;
+    ctx.drawImage(img.torch, TORCH_X0 + dx, dy);
+    if (a > .01) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      radial(hx - 12 + AX * lift, 425 + dy, 70, [[0, `rgba(140,180,255,${.55 * a})`], [1, 'rgba(140,180,255,0)']]);
+      ctx.restore();
+    }
+  }
+
+  function arcGlow(x, a, ember) {
+    const y = SEAM_Y - 3;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (ember > .01) {
+      radial(x, y + 2, 45, [[0, `rgba(255,170,80,${ember})`], [.4, `rgba(255,100,30,${.5 * ember})`], [1, 'rgba(255,80,20,0)']]);
+    }
+    if (a > .01) {
+      const f = .85 + Math.random() * .3;
+      radial(x, y, 330 * f, [[0, `rgba(80,130,255,${.42 * a})`], [.35, `rgba(60,100,230,${.14 * a})`], [1, 'rgba(50,90,220,0)']]);
+      radial(x, y, 130 * f, [[0, `rgba(170,200,255,${.6 * a})`], [1, 'rgba(150,185,255,0)']]);
+      radial(x, y, 70 * f, [[0, `rgba(255,215,170,${.6 * a})`], [1, 'rgba(255,170,100,0)']]);
+      radial(x, y, 30 * f, [[0, `rgba(255,255,255,${a})`], [.6, `rgba(240,245,255,${.85 * a})`], [1, 'rgba(230,240,255,0)']]);
+      radial(x, y, 18 * f, [[0, `rgba(255,255,255,${a})`], [1, 'rgba(255,255,255,0)']]);
+      radial(x, y, 42 * f, [[0, `rgba(200,220,255,${.55 * a})`], [1, 'rgba(200,220,255,0)']], 9, .22);
+      radial(x, y, 30 * f, [[0, `rgba(200,220,255,${.35 * a})`], [1, 'rgba(200,220,255,0)']], .25, 3.5);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Iskre i dim ----------
+  const sparks = [], smoke = [];
+  function spawnSparks(x, y, n, power = 1) {
+    for (let i = 0; i < n; i++) {
+      const tiny = Math.random() < .45;
+      const a = .45 - Math.pow(Math.random(), 1.2) * 2.6;
+      const v = (tiny ? 2 + Math.random() * 5 : 6 + Math.random() * 20) * power;
+      sparks.push({ x: x + (Math.random() - .5) * 6, y: y - 4, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0,
+        max: tiny ? 6 + Math.random() * 10 : 14 + Math.random() * 40 });
+    }
+  }
+  function drawSparks() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.life++; s.vy += .32; s.vx *= .985;
+      s.x += s.vx; s.y += s.vy;
+      const t = 1 - s.life / s.max;
+      if (t <= 0) { sparks.splice(i, 1); continue; }
+      ctx.strokeStyle = `rgba(255,${130 + 110 * t | 0},${40 + 120 * t * t | 0},${Math.min(1, t * 1.4)})`;
+      ctx.lineWidth = .8 + t * 1.6;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 2.6, s.y - s.vy * 2.6); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawSmoke(x, spawn) {
+    if (spawn && Math.random() < .75) {
+      smoke.push({ x: x + 10 + (Math.random() - .5) * 20, y: SEAM_Y - 25, vx: -.2 + Math.random() * 1.1,
+        vy: -(1 + Math.random() * 1.8), r: 16 + Math.random() * 18, life: 0, max: 100 + Math.random() * 100 });
+    }
+    for (let i = smoke.length - 1; i >= 0; i--) {
+      const s = smoke[i];
+      s.life++; s.x += s.vx; s.y += s.vy; s.vx += .006; s.vy *= .996; s.r += 1.1;
+      const t = s.life / s.max;
+      if (t >= 1) { smoke.splice(i, 1); continue; }
+      ctx.globalAlpha = .16 * Math.sin(Math.PI * t);
+      ctx.drawImage(smokeImg, s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Mreža i vinjeta u koordinatama ekrana
+  function overlay() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const cell = Math.max(62 * sc, 34);
+    ctx.strokeStyle = 'rgba(140,180,210,.045)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = cell / 2; x < W; x += cell) { ctx.moveTo((x | 0) + .5, 0); ctx.lineTo((x | 0) + .5, H); }
+    for (let y = cell / 2; y < H; y += cell) { ctx.moveTo(0, (y | 0) + .5); ctx.lineTo(W, (y | 0) + .5); }
+    ctx.stroke();
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.hypot(W, H) * .62);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+
+  // ---------- Napredak prati skrol ----------
+  const section = $('weld');
+  const track = $('track'), nav = $('nav'), siteBar = $('siteBar');
+  const PANELS = 6;     // scena varenja + 5 stranica sajta
+  const WELD_VH = 1.5;  // koliko ekrana skrola traje varenje; svaka stranica traje još jedan ekran
+  const navLinks = [...nav.querySelectorAll('.links a')];
+  const parImgs = [...document.querySelectorAll('[data-par]')].map(el => ({ el, i: [...track.children].indexOf(el.closest('.panel')) }));
+  let target = 0, prog = 0, finished = false, finishT = 0, lastScroll = -1e9;
+  let slide = 0, slideCur = 0;
+
+  // ---------- Animacije stranica sajta ----------
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const WORDS = ['CHI-TECH', 'YAWEI', '1070 nm', 'SERVIS', 'KONTAKT'];
+  const REVEAL = '.eyebrow, h2, .lead, .btns, .partners, .machines li, .services li, .media, .plate h3, .plate dt, .plate dd, .shop, .office, .social, .copy';
+  const sitePanels = [...document.querySelectorAll('.site')].map((panel, n) => {
+    const scan = document.createElement('div'); scan.className = 'scan'; panel.appendChild(scan);
+    const word = document.createElement('div'); word.className = 'bigword'; word.textContent = WORDS[n];
+    word.setAttribute('aria-hidden', 'true'); panel.prepend(word);
+    const els = [...panel.querySelectorAll(REVEAL)].map((el, j) => ({ el, j, x: 0, cut: el.matches('h2, .eyebrow'), last: -1 }));
+    return { panel, i: n + 1, scan, word, els };
+  });
+  // Položaj svakog elementa u stranici (0 = lijevo, 1 = desno) — linija ga otkriva kad prođe preko njega
+  function measureReveal() {
+    for (const p of sitePanels) {
+      const w = p.panel.clientWidth || 1;
+      for (const e of p.els) {
+        let x = 0, n = e.el;
+        while (n && n !== p.panel) { x += n.offsetLeft; n = n.offsetParent; }
+        e.x = Math.min(.95, x / w);
+      }
+    }
+  }
+  const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  function animateSite(pos) {
+    for (const p of sitePanels) {
+      const d = pos - p.i;                                   // -1 = stranica desno, 0 = na ekranu
+      const sweep = reduceMotion ? 1 : clamp01((d + .65) / .65);
+      p.scan.style.opacity = sweep > 0 && sweep < 1 ? 1 : 0;
+      p.scan.style.transform = `translateX(${sweep * p.panel.clientWidth}px)`;
+      p.word.style.transform = `translateX(${-d * 28}vw)`;
+      for (const e of p.els) {
+        const r = clamp01((sweep - e.x - e.j * .01) / .16);
+        if (Math.abs(r - e.last) < .002) continue;
+        e.last = r;
+        if (e.cut) {
+          e.el.style.clipPath = r >= 1 ? '' : `inset(-10% ${(1 - r) * 100}% -10% 0)`;
+        } else {
+          e.el.style.opacity = r;
+          e.el.style.transform = r >= 1 ? '' : `translateY(${(1 - r) * 26}px)`;
+        }
+      }
+    }
+  }
+
+  // Odlazak na stranicu i: skrola do tačke gdje je ta stranica na ekranu (0 = gotov var)
+  const pager = $('pager'), prevBtn = $('prev'), nextBtn = $('next');
+  let goal = null;
+  function goTo(i) {
+    i = Math.max(0, Math.min(PANELS - 1, i));
+    goal = i;
+    window.scrollTo({ top: section.offsetTop + (WELD_VH + i) * innerHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+  // Uzastopni klikovi se nadovezuju i dok skrol još traje
+  const current = () => goal !== null ? goal : Math.round(slide);
+  const siteVisible = () => slideCur > .5 && section.getBoundingClientRect().bottom > 0;
+
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-go]');
+    if (!a) return;
+    e.preventDefault();
+    goTo(+a.dataset.go);
+  });
+  prevBtn.addEventListener('click', () => goTo(current() - 1));
+  nextBtn.addEventListener('click', () => goTo(current() + 1));
+
+  // Tastatura: strelice lijevo / desno
+  addEventListener('keydown', e => {
+    if (!siteVisible() || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); goTo(current() + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current() - 1); }
+  });
+
+  // Telefon: prevlačenje prstom lijevo (naprijed) i desno (nazad)
+  let touch = null;
+  addEventListener('wheel', () => { goal = null; }, { passive: true });
+  addEventListener('touchstart', e => {
+    goal = null;
+    touch = siteVisible() && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  addEventListener('touchend', e => {
+    if (!touch) return;
+    const dx = e.changedTouches[0].clientX - touch.x, dy = e.changedTouches[0].clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) goTo(current() + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+  let arc = 0, heat = 0, ember = 0, lift = 0;
+  // Pregled jednog kadra: index.html?p=0.6
+  const freeze = new URLSearchParams(location.search).get('p');
+  function readScroll() {
+    if (freeze !== null) {
+      target = Math.min(1, +freeze);
+      slide = slideCur = +(new URLSearchParams(location.search).get('s') || 0); // pregled stranice: ?p=1&s=2
+      return;
+    }
+    const vh = innerHeight, s = -section.getBoundingClientRect().top;
+    target = Math.max(0, Math.min(1, s / (WELD_VH * vh)));
+    slide = Math.max(0, Math.min(PANELS - 1, (s - WELD_VH * vh) / vh));
+    lastScroll = performance.now();
+  }
+  addEventListener('scroll', readScroll, { passive: true });
+
+  const PHASES = [[0, 'Poravnanje materijala'], [.1, 'Paljenje luka'], [.3, 'Formiranje šava'],
+                  [.5, 'Spajanje spoja'], [.7, 'Zatvaranje spoja']];
+  const dots = [...$('dots').children];
+  let lastKey = '';
+  function hud() {
+    const pct = Math.floor(prog * 100);
+    const status = finished ? 'Varenje završeno' : PHASES.filter(p => prog >= p[0]).pop()[1];
+    const frm = finished ? 6 : Math.min(5, Math.floor(prog * 5) + 1);
+    const key = pct + status;
+    if (key === lastKey) return;
+    lastKey = key;
+    $('pct').textContent = pct;
+    $('fill').style.width = (prog * 100).toFixed(1) + '%';
+    $('status').textContent = status;
+    $('trStatus').textContent = status;
+    $('stsub').textContent = finished ? 'Termičko spajanje završeno' : prog >= .1 ? 'Termičko spajanje u toku' : '';
+    $('frm').textContent = '0' + frm;
+    dots.forEach((d, i) => d.classList.toggle('on', i < frm));
+    $('s3').classList.toggle('on', prog >= .1);
+    $('s4').classList.toggle('on', finished);
+    $('final').classList.toggle('on', finished);
+    $('finalTxt').textContent = finished ? 'Varenje završeno' : 'Provjera';
+    loader.classList.toggle('done', finished);
+  }
+
+  let time = 0;
+  function frame() {
+    requestAnimationFrame(frame);
+    time++;
+    const d = target - prog;
+    prog += Math.sign(d) * Math.min(Math.abs(d) * .2, .03);
+    if (Math.abs(target - prog) < .0005) prog = target;
+
+    const wasFinished = finished;
+    finished = prog >= .999;
+    if (finished && !wasFinished) { finishT = time; ember = 1; }
+    $('hint').classList.toggle('gone', prog > .02);
+
+    // Luk gori dok se pištolj kreće (ili se tek skrolalo), a ugasi se kad stane
+    const moving = Math.abs(target - prog) > .0008 || performance.now() - lastScroll < 220;
+    if (moving && !finished && freeze === null || freeze !== null && !finished) {
+      arc = Math.min(1, arc + .12); heat = Math.min(1, heat + .06);
+    } else {
+      arc = Math.max(0, arc - .07); heat = Math.max(0, heat - .01);
+    }
+    ember = finished ? Math.max(0, ember - .008) : 0;
+    lift += ((finished ? 40 : 0) - lift) * .08;
+
+    // Klizanje udesno: scena odlazi lijevo, sajt ulazi zdesna
+    slideCur += (slide - slideCur) * .2;
+    if (Math.abs(slide - slideCur) < .0005) slideCur = slide;
+    // Svaka stranica se malo zadrži na mjestu prije sljedećeg klizanja
+    const k = Math.floor(slideCur), f = slideCur - k;
+    const pos = Math.min(PANELS - 1, k + f * f * (3 - 2 * f));
+    track.style.transform = `translate3d(${-pos * 100 / PANELS}%,0,0)`;
+    // Slike strojeva klize brže od stranice (paralaksa)
+    for (const p of parImgs) p.el.style.transform = `translateX(${(p.i - pos) * 22}vw)`;
+    nav.classList.toggle('show', pos > .55);
+    pager.classList.toggle('show', pos > .55);
+    const active = Math.round(pos);
+    if (goal !== null && Math.abs(slide - goal) < .02) goal = null;
+    const shown = Math.max(1, active);
+    $('pgNum').textContent = `0${shown} / 0${PANELS - 1}`;
+    prevBtn.disabled = active < 1;
+    nextBtn.disabled = active >= PANELS - 1;
+    navLinks.forEach((a, i) => a.classList.toggle('on', i + 1 === active));
+    siteBar.style.width = (Math.max(0, pos) / (PANELS - 1) * 100) + '%';
+    animateSite(pos);
+
+    // Kad scena varenja nije vidljiva, ne crtaj
+    if (section.getBoundingClientRect().bottom < 0 || pos > .999) return;
+
+    const hx = X_START + (X_END - X_START) * prog;
+
+    // Kamera: na uskim ekranima prati pištolj
+    let tx = (W - SW * sc) / 2;
+    if (tx < 0) tx = Math.min(0, Math.max(W - SW * sc, W / 2 - hx * sc));
+    camX = camX === null ? tx : camX + (tx - camX) * .12;
+
+    ctx.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * camX, DPR * oy);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img.bg, 0, 0);
+    drawWeld(hx);
+    drawHot(hx, heat);
+    plateLight(hx, arc);
+    drawSmoke(hx, arc > .3);
+    drawTorch(hx, lift, arc);
+    arcGlow(hx, arc, Math.max(ember, heat * (1 - arc) * .7));
+    if (arc > .3) spawnSparks(hx, SEAM_Y, Math.round((7 + Math.random() * 7) * arc));
+    else if ((ember > .3 || heat > .4) && Math.random() < .12) spawnSparks(hx, SEAM_Y, 1, .5);
+    drawSparks();
+    overlay();
+    hud();
+  }
+
+  addEventListener('resize', () => { resize(); readScroll(); measureReveal(); });
+  resize();
+  measureReveal();
+  if (document.fonts) document.fonts.ready.then(measureReveal);
+  addEventListener('load', measureReveal);
+  Promise.all([load('bg', 'assets/bg.jpg'), load('weld', 'assets/weld.png'), load('torch', 'assets/torch.png')])
+    .then(() => {
+      loader.classList.add('ready');
+      readScroll();
+      prog = target;
+      lastScroll = -1e9;
+      requestAnimationFrame(frame);
+    });
+})();
+</script>
+</body>
+</html>

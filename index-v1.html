@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHI LASERI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0c0e; color: #e9ecef;
+    font-family: 'Rajdhani', 'Segoe UI', system-ui, sans-serif; }
+  body.loading { overflow: hidden; }
+
+  #loader { position: fixed; inset: 0; z-index: 100; background: #0b0c0e;
+    transition: opacity .9s ease, visibility .9s; }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+  #scene { display: block; width: 100%; height: 100%; }
+
+  .brand { position: absolute; top: clamp(20px, 5vh, 48px); left: clamp(20px, 5vw, 64px);
+    pointer-events: none; }
+  .brand h1 { margin: 0; font-weight: 700; letter-spacing: .32em;
+    font-size: clamp(24px, 3.2vw, 42px); line-height: 1; }
+  .brand h1 span { color: #ff8a1f; text-shadow: 0 0 18px rgba(255, 130, 30, .55); }
+  .brand p { margin: .7em 0 0; font-size: 12px; font-weight: 600; letter-spacing: .45em;
+    text-transform: uppercase; color: #8b939c; }
+
+  .hud { position: absolute; left: 50%; bottom: clamp(28px, 8vh, 72px);
+    transform: translateX(-50%); width: min(520px, 84vw); pointer-events: none; }
+  .row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+  .status { font-size: 13px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase;
+    color: #a9b1ba; padding-bottom: 6px; }
+  .pct { font-size: clamp(30px, 4vw, 46px); font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums; }
+  .pct small { font-size: .45em; color: #ff8a1f; margin-left: 3px; }
+  .bar { height: 3px; background: rgba(255, 255, 255, .08); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; width: 0; border-radius: 3px;
+    background: linear-gradient(90deg, #6b230a, #ff6a00 70%, #ffe2a8);
+    box-shadow: 0 0 12px #ff7a1a, 0 0 26px rgba(255, 120, 30, .6); }
+
+  /* Ovdje ide ostatak sajta — prikazuje se kad se loading završi */
+  #site { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 24px; }
+  #site h2 { font-size: clamp(32px, 6vw, 72px); letter-spacing: .2em; margin: 0; }
+  #site h2 span { color: #ff8a1f; }
+</style>
+</head>
+<body class="loading">
+
+<div id="loader">
+  <canvas id="scene"></canvas>
+  <div class="brand">
+    <h1>CHI <span>LASERI</span></h1>
+    <p>Lasersko varenje</p>
+  </div>
+  <div class="hud">
+    <div class="row">
+      <div class="status" id="status">Kalibracija lasera</div>
+      <div class="pct"><span id="pct">0</span><small>%</small></div>
+    </div>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+  </div>
+</div>
+
+<main id="site">
+  <h2>CHI <span>LASERI</span></h2>
+</main>
+
+<script>
+(() => {
+  const cv = document.getElementById('scene');
+  const ctx = cv.getContext('2d');
+  const elPct = document.getElementById('pct');
+  const elFill = document.getElementById('fill');
+  const elStatus = document.getElementById('status');
+
+  let W, H, S, DPR, plate, ang, len;
+  const A = { x: 0, y: 0 }, B = { x: 0, y: 0 };
+  let spatter = [];
+
+  // ---------- Layout ----------
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    S = Math.max(Math.min(W, H) / 900, 0.45);
+
+    // Linija vara: od dolje lijevo prema gore desno
+    A.x = W * 0.06; A.y = H * 0.72;
+    B.x = W * 0.94; B.y = H * (W > H ? 0.47 : 0.55);
+    ang = Math.atan2(B.y - A.y, B.x - A.x);
+    len = Math.hypot(B.x - A.x, B.y - A.y);
+
+    spatter = [];
+    for (let d = 0; d < len; d += 6 + Math.random() * 30) {
+      spatter.push({ d, off: (Math.random() < .5 ? -1 : 1) * (10 + Math.random() * 22) * S,
+        r: (0.6 + Math.random() * 1.4) * S });
+    }
+    plate = buildPlate();
+  }
+
+  // ---------- Metalna ploča (crta se jednom) ----------
+  function buildPlate() {
+    const c = document.createElement('canvas');
+    c.width = W * DPR; c.height = H * DPR;
+    const p = c.getContext('2d');
+    p.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    let g = p.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#30343a'); g.addColorStop(.55, '#23262b'); g.addColorStop(1, '#141619');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+
+    // Brušena tekstura
+    p.save();
+    p.translate(W / 2, H / 2); p.rotate(ang);
+    const D = Math.hypot(W, H);
+    for (let i = 0; i < 2600; i++) {
+      const y = (Math.random() - .5) * D, x = (Math.random() - .5) * D, l = 40 + Math.random() * 380;
+      p.strokeStyle = Math.random() < .5 ? `rgba(255,255,255,${.015 + Math.random() * .035})`
+                                          : `rgba(0,0,0,${.03 + Math.random() * .05})`;
+      p.lineWidth = Math.random() * 1.2 + .3;
+      p.beginPath(); p.moveTo(x, y); p.lineTo(x + l, y); p.stroke();
+    }
+    p.restore();
+
+    // Odsjaj svjetla
+    g = p.createRadialGradient(W * .62, H * .3, 0, W * .62, H * .3, Math.max(W, H) * .6);
+    g.addColorStop(0, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+
+    // Gornja ivica ploče
+    const e0 = H * .24, e1 = H * .03;
+    g = p.createLinearGradient(0, 0, 0, e0);
+    g.addColorStop(0, '#050506'); g.addColorStop(1, '#0d0e10');
+    p.fillStyle = g;
+    p.beginPath(); p.moveTo(0, 0); p.lineTo(W, 0); p.lineTo(W, e1); p.lineTo(0, e0); p.closePath(); p.fill();
+    p.strokeStyle = 'rgba(255,255,255,.2)'; p.lineWidth = 1.5;
+    p.beginPath(); p.moveTo(0, e0 + 1); p.lineTo(W, e1 + 1); p.stroke();
+    p.strokeStyle = 'rgba(0,0,0,.5)'; p.lineWidth = 2;
+    p.beginPath(); p.moveTo(0, e0 + 4); p.lineTo(W, e1 + 4); p.stroke();
+
+    // Spoj (žlijeb) koji se vari
+    const ex = Math.cos(ang) * len, ey = Math.sin(ang) * len;
+    p.lineCap = 'round';
+    p.strokeStyle = 'rgba(0,0,0,.75)'; p.lineWidth = 2.2 * S;
+    p.beginPath(); p.moveTo(A.x - ex, A.y - ey); p.lineTo(B.x + ex, B.y + ey); p.stroke();
+    p.strokeStyle = 'rgba(255,255,255,.12)'; p.lineWidth = 1;
+    p.beginPath(); p.moveTo(A.x - ex, A.y - ey + 2 * S); p.lineTo(B.x + ex, B.y + ey + 2 * S); p.stroke();
+
+    // Vinjeta
+    g = p.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .25, W / 2, H / 2, Math.hypot(W, H) * .6);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)');
+    p.fillStyle = g; p.fillRect(0, 0, W, H);
+    return c;
+  }
+
+  // ---------- Šav (var) ----------
+  function capsule(x0, x1, r) {
+    ctx.beginPath();
+    ctx.moveTo(x0, -r); ctx.lineTo(x1, -r);
+    ctx.arc(x1, 0, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x0, r);
+    ctx.arc(x0, 0, r, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+  }
+
+  function drawBead(dist, heat) {
+    if (dist < 1) return;
+    const r = 7 * S;
+    ctx.save();
+    ctx.translate(A.x, A.y); ctx.rotate(ang);
+
+    // Kapljice prskanja pored šava
+    ctx.fillStyle = 'rgba(150,155,162,.55)';
+    for (const s of spatter) {
+      if (s.d > dist - 30 * S) break;
+      ctx.beginPath(); ctx.arc(s.d, s.off, s.r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Tamna zona oko šava (oksidacija)
+    ctx.fillStyle = 'rgba(20,14,10,.45)';
+    capsule(0, dist, r * 1.9); ctx.fill();
+
+    // Tijelo šava — metalni presjek
+    let g = ctx.createLinearGradient(0, -r, 0, r);
+    g.addColorStop(0, '#3a3d42'); g.addColorStop(.3, '#b9bec4'); g.addColorStop(.48, '#e8ebee');
+    g.addColorStop(.7, '#6f757c'); g.addColorStop(1, '#25282c');
+    ctx.fillStyle = g; capsule(0, dist, r); ctx.fill();
+
+    // Talasići (ripples)
+    const step = 3.4 * S, rr = 7.5 * S, a = 1.15;
+    const hi = new Path2D(), sh = new Path2D();
+    for (let d = 0; d < dist; d += step) {
+      const cx = d + 6 * S;
+      hi.moveTo(cx + rr * Math.cos(Math.PI - a), rr * Math.sin(Math.PI - a));
+      hi.arc(cx, 0, rr, Math.PI - a, Math.PI + a);
+      sh.moveTo(cx + 1.4 * S + rr * Math.cos(Math.PI - a), rr * Math.sin(Math.PI - a));
+      sh.arc(cx + 1.4 * S, 0, rr, Math.PI - a, Math.PI + a);
+    }
+    ctx.save(); capsule(0, dist, r); ctx.clip();
+    ctx.lineWidth = 1.1 * S;
+    ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.stroke(sh);
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.stroke(hi);
+    ctx.restore();
+
+    // Užareni dio iza glave — hladi se prema nazad
+    const hot = 320 * S;
+    g = ctx.createLinearGradient(dist - hot, 0, dist, 0);
+    g.addColorStop(0, 'rgba(120,30,10,0)');
+    g.addColorStop(.4, `rgba(160,35,10,${.55 * heat})`);
+    g.addColorStop(.72, `rgba(255,100,20,${.85 * heat})`);
+    g.addColorStop(.92, `rgba(255,200,90,${.95 * heat})`);
+    g.addColorStop(1, `rgba(255,250,225,${heat})`);
+    ctx.fillStyle = g; capsule(Math.max(0, dist - hot), dist, r * 1.05); ctx.fill();
+
+    // Rastopljena kupka
+    if (heat > 0.01) {
+      g = ctx.createRadialGradient(dist, 0, 0, dist, 0, 10 * S);
+      g.addColorStop(0, `rgba(255,255,245,${heat})`);
+      g.addColorStop(.6, `rgba(255,210,120,${heat * .9})`);
+      g.addColorStop(1, 'rgba(255,120,30,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(dist, 0, 11 * S, 8.5 * S, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Glava lasera i žica ----------
+  function metal(w, dark) {
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    if (dark) {
+      g.addColorStop(0, '#0d0e10'); g.addColorStop(.3, '#4a4f56'); g.addColorStop(.45, '#7d848c');
+      g.addColorStop(.7, '#2a2d31'); g.addColorStop(1, '#08090a');
+    } else {
+      g.addColorStop(0, '#22252a'); g.addColorStop(.25, '#cfd4d9'); g.addColorStop(.42, '#f7f8f9');
+      g.addColorStop(.7, '#7a8088'); g.addColorStop(1, '#17191c');
+    }
+    return g;
+  }
+  function copper(w) {
+    const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+    g.addColorStop(0, '#3b220c'); g.addColorStop(.3, '#e0a256'); g.addColorStop(.45, '#ffe0a6');
+    g.addColorStop(.7, '#9a5a1e'); g.addColorStop(1, '#2a1708');
+    return g;
+  }
+  function seg(x0, x1, w0, w1, fill) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x0, -w0 / 2); ctx.lineTo(x1, -w1 / 2); ctx.lineTo(x1, w1 / 2); ctx.lineTo(x0, w0 / 2);
+    ctx.closePath(); ctx.fill();
+  }
+  function rings(x0, x1, w, n, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+    for (let i = 1; i < n; i++) {
+      const x = x0 + (x1 - x0) * i / n;
+      ctx.beginPath(); ctx.moveTo(x, -w / 2); ctx.lineTo(x, w / 2); ctx.stroke();
+    }
+  }
+
+  function drawTorch(x, y, a, heat) {
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(a); ctx.scale(S, S);
+    seg(0, 10, 6, 10, '#3a2410');
+    seg(10, 50, 10, 21, copper(21));
+    seg(50, 58, 23, 23, metal(23, true));
+    seg(58, 250, 22, 22, metal(22));
+    seg(250, 262, 26, 30, metal(30, true));
+    seg(262, 315, 42, 42, metal(42));
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(262, -11, 53, 1.5); ctx.fillRect(262, 10, 53, 1.5);
+    rings(262, 315, 42, 6, 'rgba(0,0,0,.25)');
+    seg(315, 335, 42, 50, metal(50, true));
+    seg(335, 3000, 58, 58, metal(58));
+    // Topli odsjaj vrha
+    if (heat > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 90);
+      g.addColorStop(0, `rgba(255,170,70,${.6 * heat})`); g.addColorStop(1, 'rgba(255,120,30,0)');
+      ctx.fillStyle = g; ctx.fillRect(-10, -50, 110, 100);
+    }
+    ctx.restore();
+  }
+
+  function drawWire(x, y, a, heat) {
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(a); ctx.scale(S, S);
+    const g = ctx.createLinearGradient(0, 0, 40, 0);
+    g.addColorStop(0, heat > .05 ? '#fff1c2' : '#c9a77a'); g.addColorStop(.4, '#e0904a'); g.addColorStop(1, '#a88a62');
+    ctx.fillStyle = g; ctx.fillRect(0, -1, 42, 2);
+    seg(40, 92, 4, 9, metal(9, true));
+    seg(92, 390, 10, 10, metal(10));
+    seg(390, 404, 15, 15, metal(15, true));
+    seg(404, 462, 24, 24, metal(24, true));
+    rings(404, 462, 24, 12, 'rgba(255,255,255,.12)');
+    seg(462, 3000, 28, 28, metal(28));
+    ctx.restore();
+  }
+
+  // ---------- Iskre ----------
+  const sparks = [];
+  function spawnSparks(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI * (0.05 + Math.random() * 0.9) + ang * .5;
+      const v = (2 + Math.random() * 8) * S;
+      sparks.push({ x, y, vx: Math.cos(a) * v - Math.cos(ang) * 1.5 * S, vy: Math.sin(a) * v,
+        life: 0, max: 25 + Math.random() * 45 });
+    }
+  }
+  function drawSparks() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.life++;
+      s.vy += 0.22 * S; s.vx *= 0.985;
+      s.x += s.vx; s.y += s.vy;
+      const t = 1 - s.life / s.max;
+      if (t <= 0) { sparks.splice(i, 1); continue; }
+      ctx.strokeStyle = `rgba(255,${150 + 100 * t | 0},${60 * t | 0},${t})`;
+      ctx.lineWidth = (1 + t * 1.2) * S;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 2.2, s.y - s.vy * 2.2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function glow(x, y, heat, time) {
+    if (heat <= 0) return;
+    const f = 0.85 + Math.sin(time * 0.045) * 0.06 + Math.random() * 0.12;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    let g = ctx.createRadialGradient(x, y, 0, x, y, 170 * S * f);
+    g.addColorStop(0, `rgba(255,190,90,${.75 * heat})`);
+    g.addColorStop(.25, `rgba(255,120,30,${.3 * heat})`);
+    g.addColorStop(1, 'rgba(255,90,20,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 200 * S, y - 200 * S, 400 * S, 400 * S);
+    g = ctx.createRadialGradient(x, y, 0, x, y, 22 * S * f);
+    g.addColorStop(0, `rgba(255,255,255,${heat})`); g.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - 30 * S, y - 30 * S, 60 * S, 60 * S);
+    // Horizontalni bljesak
+    ctx.translate(x, y); ctx.scale(6, 0.5);
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30 * S * f);
+    g.addColorStop(0, `rgba(255,220,160,${.45 * heat})`); g.addColorStop(1, 'rgba(255,180,90,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 30 * S * f, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- Napredak ----------
+  // Za stvarno učitavanje: window.CHILoader.set(0..1) iz vlastitog koda.
+  let target = 0, prog = 0, manual = false, finished = false, finishT = 0, heat = 0;
+  function simulate() {
+    if (manual || target >= 1) return;
+    target = Math.min(1, target + 0.008 + Math.random() * 0.07);
+    setTimeout(simulate, 60 + Math.random() * 180);
+  }
+  window.CHILoader = { set(v) { manual = true; target = Math.max(target, Math.min(1, v)); } };
+
+  function statusText(p) {
+    if (p < .12) return 'Kalibracija lasera';
+    if (p < .3) return 'Zagrijavanje';
+    if (p < .92) return 'Varenje u toku';
+    if (p < 1) return 'Hlađenje spoja';
+    return 'Spremno';
+  }
+
+  let time = 0, lastPct = -1;
+  function frame() {
+    time++;
+    prog += Math.min((target - prog) * 0.14, 0.012);
+    if (target >= 1 && 1 - prog < 0.002) prog = 1;
+
+    if (!finished) heat = Math.min(1, heat + 0.05);
+    if (prog >= 1 && !finished) { finished = true; finishT = time; }
+    if (finished) heat = Math.max(0, heat - 0.03);
+
+    const dist = prog * len;
+    const jitter = Math.sin(time * 0.9) * 0.4 * S;
+    const px = A.x + Math.cos(ang) * dist - Math.sin(ang) * jitter;
+    const py = A.y + Math.sin(ang) * dist + Math.cos(ang) * jitter;
+
+    ctx.drawImage(plate, 0, 0, W, H);
+
+    // Narandžasto svjetlo na ploči
+    if (heat > 0) {
+      const g = ctx.createRadialGradient(px, py, 0, px, py, 480 * S);
+      g.addColorStop(0, `rgba(255,120,30,${.16 * heat})`); g.addColorStop(1, 'rgba(255,100,20,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+
+    drawBead(dist, heat);
+
+    // Glava se podiže nakon završetka
+    const lift = finished ? Math.min(1, (time - finishT) / 50) : 0;
+    const ease = lift * lift * (3 - 2 * lift);
+    const ta = -1.02, wa = ang - 0.12;
+    const gap = 16 * S + ease * 140 * S;
+    const tx = px + Math.cos(ta) * gap, ty = py + Math.sin(ta) * gap;
+    const wx = px + Math.cos(ang) * 4 * S + Math.cos(wa) * ease * 120 * S;
+    const wy = py + Math.sin(ang) * 4 * S + Math.sin(wa) * ease * 120 * S;
+
+    drawWire(wx, wy, wa, heat);
+
+    // Laserski snop
+    if (heat > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = `rgba(255,230,180,${.9 * heat})`; ctx.lineWidth = 2.2 * S;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(px, py); ctx.stroke();
+      ctx.restore();
+    }
+
+    drawTorch(tx, ty, ta, heat);
+
+    if (!finished && prog > 0.002) spawnSparks(px, py, 4 + (Math.random() * 5 | 0));
+    glow(px, py, heat, time);
+    drawSparks();
+
+    // HUD
+    const pct = Math.floor(prog * 100);
+    if (pct !== lastPct) {
+      lastPct = pct;
+      elPct.textContent = pct;
+      elFill.style.width = (prog * 100).toFixed(1) + '%';
+      elStatus.textContent = statusText(prog);
+    }
+
+    if (finished && time - finishT === 70) {
+      document.getElementById('loader').classList.add('hidden');
+      document.body.classList.remove('loading');
+    }
+    if (!finished || time - finishT < 140) requestAnimationFrame(frame);
+  }
+
+  addEventListener('resize', resize);
+  resize();
+  setTimeout(simulate, 250);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
