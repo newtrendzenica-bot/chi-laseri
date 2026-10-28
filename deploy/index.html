@@ -138,6 +138,16 @@
   .plate dd { margin: 0; text-align: right; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .plate dl > :nth-last-child(-n+2) { border-bottom: 0; }
 
+  /* Stavke vode na svoju podstranicu */
+  .machines a, .services a { display: contents; color: inherit; text-decoration: none; }
+  .machines a::after, .services a::after { content: ''; position: absolute; inset: 0; }
+  .machines li, .services li { position: relative; }
+  .machines li:focus-within, .services li:focus-within { outline: 2px solid var(--red); outline-offset: 2px; }
+  .machines strong::after, .services strong::after { content: ' →'; color: var(--red); opacity: 0; transition: opacity .2s; }
+  .machines li:hover strong, .services li:hover strong { color: var(--red); }
+  .machines li:hover strong::after, .services li:hover strong::after { opacity: 1; }
+  @media (hover: none) { .machines strong::after, .services strong::after { opacity: 1; } }
+
   .services { list-style: none; padding: 0; margin: clamp(12px, 2.6vh, 26px) 0 0; display: grid; border-top: 1px solid var(--line); }
   .services li { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 16px; align-items: baseline;
     padding: clamp(9px, 1.6vh, 14px) 0; border-bottom: 1px solid var(--line); }
@@ -279,13 +289,13 @@
       <h2>Kompletna linija za <em>obradu lima</em></h2>
       <p class="lead">Yawei je premium proizvođač strojeva za obradu lima, s komponentama Siemens, Precitec, IPG, THK i Beckhoff. Vrijeme je za kvalitetnu automatizaciju vaše proizvodnje.</p>
       <ul class="machines">
-        <li><strong>Fiber laser</strong><span>Rezanje ploča i cijevi</span></li>
-        <li><strong>Zavarivanje i čišćenje</strong><span>Ručni fiber laseri</span></li>
-        <li><strong>Kutna preša</strong><span>Savijanje lima</span></li>
-        <li><strong>Panel bender</strong><span>Automatsko savijanje panela</span></li>
-        <li><strong>Vakuumski podizač</strong><span>Sigurna manipulacija limom</span></li>
-        <li><strong>Filterske jedinice</strong><span>Odsis dima i prašine</span></li>
-        <li><strong>Kompresori</strong><span>Zrak za lasersko rezanje</span></li>
+        <li><a href="strojevi/fiber-laser.html"><strong>Fiber laser</strong><span>Rezanje ploča i cijevi</span></a></li>
+        <li><a href="strojevi/zavarivanje-i-ciscenje.html"><strong>Zavarivanje i čišćenje</strong><span>Ručni fiber laseri</span></a></li>
+        <li><a href="strojevi/kutna-presa.html"><strong>Kutna preša</strong><span>Savijanje lima</span></a></li>
+        <li><a href="strojevi/panel-bender.html"><strong>Panel bender</strong><span>Automatsko savijanje panela</span></a></li>
+        <li><a href="strojevi/vakuumski-podizac.html"><strong>Vakuumski podizač</strong><span>Sigurna manipulacija limom</span></a></li>
+        <li><a href="strojevi/filterske-jedinice.html"><strong>Filterske jedinice</strong><span>Odsis dima i prašine</span></a></li>
+        <li><a href="strojevi/kompresori.html"><strong>Kompresori</strong><span>Zrak za lasersko rezanje</span></a></li>
       </ul>
     </div>
     <div class="media"><img data-par src="assets/yawei-laser.png" alt="Yawei fiber laser"></div>
@@ -299,7 +309,8 @@
       <h2>Minimalna toplina. <em>Minimalne deformacije.</em></h2>
       <p class="lead">Fiber laser unosi vrlo malo topline u materijal, pa se lim pri zavarivanju gotovo ne izobličuje. Isti uređaj skida hrđu i čisti površine. Uređaje za zavarivanje i čišćenje nudimo i u najam.</p>
       <div class="btns">
-        <a class="btn primary" href="mailto:info@chitech.com.hr?subject=Upit%20za%20najam%20uređaja">Upit za najam</a>
+        <a class="btn primary" href="strojevi/zavarivanje-i-ciscenje.html">Pogledajte uređaje</a>
+        <a class="btn" href="usluge/najam-uredaja.html">Najam</a>
       </div>
     </div>
     <div class="weldcol">
@@ -326,11 +337,11 @@
       <p class="eyebrow">Usluge</p>
       <h2>Servis od montaže <em>do retrofita</em></h2>
       <ul class="services">
-        <li><strong>Montaža i obuka</strong><span>Instalacija stroja, puštanje u rad i obuka vaših operatera.</span></li>
-        <li><strong>Servisne intervencije</strong><span>Brzo otklanjanje kvarova kad stroj stane.</span></li>
-        <li><strong>Redovni servisi</strong><span>Godišnje servisiranje CNC strojeva.</span></li>
-        <li><strong>Retrofit</strong><span>Novo ruho vašeg starog stroja: prenamjena, popravak, podešavanje i nadogradnja.</span></li>
-        <li><strong>Najam uređaja</strong><span>Laseri za zavarivanje i čišćenje u najmu.</span></li>
+        <li><a href="usluge/montaza-i-obuka.html"><strong>Montaža i obuka</strong><span>Instalacija stroja, puštanje u rad i obuka vaših operatera.</span></a></li>
+        <li><a href="usluge/servisne-intervencije.html"><strong>Servisne intervencije</strong><span>Brzo otklanjanje kvarova kad stroj stane.</span></a></li>
+        <li><a href="usluge/redovni-servisi.html"><strong>Redovni servisi</strong><span>Godišnje servisiranje CNC strojeva.</span></a></li>
+        <li><a href="usluge/retrofit.html"><strong>Retrofit</strong><span>Novo ruho vašeg starog stroja: prenamjena, popravak, podešavanje i nadogradnja.</span></a></li>
+        <li><a href="usluge/najam-uredaja.html"><strong>Najam uređaja</strong><span>Laseri za zavarivanje i čišćenje u najmu.</span></a></li>
       </ul>
     </div>
     <div class="shop">
@@ -745,6 +756,8 @@
     const k = Math.floor(slideCur), f = slideCur - k;
     const pos = Math.min(PANELS - 1, k + f * f * (3 - 2 * f));
     track.style.transform = `translate3d(${-pos * 100 / PANELS}%,0,0)`;
+    // Sidro ili Tab na skrivenoj stranici može pomaknuti kontejner ustranu; stranice pomiče samo transform
+    if (loader.scrollLeft) loader.scrollLeft = 0;
     // Slike strojeva klize brže od stranice (paralaksa)
     for (const p of parImgs) p.el.style.transform = `translateX(${(p.i - pos) * 22}vw)`;
     nav.classList.toggle('show', pos > .55);
@@ -786,6 +799,22 @@
   }
 
   addEventListener('resize', () => { resize(); readScroll(); measureReveal(); });
+  // Povratak s podstranice: index.html#/strojevi odmah otvara tu stranicu sajta
+  // (oblik #/… ne odgovara nijednom id-u, pa browser sam ne skrola na sidro)
+  const hashId = location.hash.replace(/^#\/?/, '');
+  const start = sitePanels.findIndex(p => p.panel.id === hashId);
+  // Browser sam skrola na #sidro kad se učita, pa skok ponavljamo i nakon toga
+  function jumpToStart() {
+    if (start < 0 || freeze !== null) return;
+    loader.scrollLeft = 0;
+    window.scrollTo(0, section.offsetTop + (WELD_VH + start + 1) * innerHeight);
+    readScroll();
+    prog = target;
+    slideCur = slide;
+  }
+  if (start >= 0 && 'scrollRestoration' in history) history.scrollRestoration = 'manual';
+  jumpToStart();
+  addEventListener('load', () => requestAnimationFrame(jumpToStart));
   resize();
   measureReveal();
   if (document.fonts) document.fonts.ready.then(measureReveal);
@@ -795,6 +824,7 @@
       loader.classList.add('ready');
       readScroll();
       prog = target;
+      slideCur = slide;   // bez klizanja preko svih stranica kad se stranica otvori na sredini
       lastScroll = -1e9;
       requestAnimationFrame(frame);
     });
