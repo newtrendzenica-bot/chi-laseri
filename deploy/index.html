@@ -176,9 +176,21 @@
     padding-block: calc(14px + env(safe-area-inset-top, 0px)) 14px;
     padding-left: max(16px, 6vw); padding-right: max(16px, 6vw);
     background: rgba(231, 234, 237, .88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line); font-family: var(--body);
-    opacity: 0; visibility: hidden; transition: opacity .35s, visibility .35s; }
-  .site-nav.show { opacity: 1; visibility: visible; }
+    border-bottom: 1px solid var(--line); font-family: var(--body); transition: background .35s, border-color .35s; }
+  /* Preko scene varenja meni je taman i providan */
+  .site-nav.dark { background: rgba(6, 8, 10, .45); border-color: rgba(160, 200, 230, .14); }
+  .site-nav.dark .links a { color: #aab3bb; }
+  .site-nav.dark .links a:hover { color: #fff; }
+  .menu-btn { display: none; flex: none; width: 44px; height: 44px; padding: 0; place-items: center; cursor: pointer;
+    background: none; color: var(--ink); border: 1.5px solid currentColor; }
+  .site-nav.dark .menu-btn { color: #e6ecf0; }
+  .menu-btn span, .menu-btn span::before, .menu-btn span::after { display: block; width: 18px; height: 2px; background: currentColor; transition: transform .2s, background .2s; }
+  .menu-btn span { position: relative; }
+  .menu-btn span::before, .menu-btn span::after { content: ''; position: absolute; left: 0; }
+  .menu-btn span::before { top: -6px; } .menu-btn span::after { top: 6px; }
+  .site-nav.open .menu-btn span { background: transparent; }
+  .site-nav.open .menu-btn span::before { transform: translateY(6px) rotate(45deg); }
+  .site-nav.open .menu-btn span::after { transform: translateY(-6px) rotate(-45deg); }
   .site-nav .logo { height: 30px; width: auto; display: block; }
   .site-nav .links { display: flex; gap: clamp(14px, 2vw, 30px); margin-left: auto; }
   .site-nav .links a { color: var(--mute); text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; padding: 6px 0; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s; }
@@ -215,8 +227,17 @@
     .sp { grid-template-columns: 1fr; align-content: safe center; gap: 18px; }
     .media img { max-height: 26vh; }
     .weldcol img, .shop img { display: none; }
-    .site-nav .links { display: none; }
+    .site-nav { gap: 12px; }
+    .site-nav .links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; gap: 0; margin: 0;
+      padding: 6px max(16px, 6vw) 16px; background: var(--steel); border-bottom: 1px solid var(--line);
+      box-shadow: 0 24px 30px -22px rgba(0, 0, 0, .45); }
+    .site-nav.open .links { display: flex; }
+    .site-nav .links a { padding: 14px 0; font-size: 15px; border-bottom: 1px solid var(--line); }
+    .site-nav .links a:last-child { border-bottom: 0; }
+    .site-nav.dark .links { background: rgba(6, 8, 10, .94); border-color: rgba(160, 200, 230, .14); }
+    .site-nav.dark .links a { border-bottom-color: rgba(160, 200, 230, .14); }
     .site-nav .btn { margin-left: auto; }
+    .menu-btn { display: grid; }
     .services li { grid-template-columns: 1fr; gap: 2px; }
   }
   @media (max-width: 520px) {
@@ -392,9 +413,9 @@
 </section>
 </div>
 
-<nav class="site-nav" id="nav" aria-label="Glavna navigacija">
+<nav class="site-nav dark" id="nav" aria-label="Glavna navigacija">
   <a href="#o-nama" data-go="1"><img class="logo" src="assets/logo.png" alt="CHI-TECH"></a>
-  <div class="links">
+  <div class="links" id="navLinks">
     <a href="#o-nama" data-go="1">O nama</a>
     <a href="strojevi/index.html">Strojevi</a>
     <a href="#zavarivanje" data-go="3">Zavarivanje</a>
@@ -402,6 +423,7 @@
     <a href="#kontakt" data-go="5">Kontakt</a>
   </div>
   <a class="btn primary" href="#kontakt" data-go="5">Prijava kvara</a>
+  <button type="button" class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="navLinks" aria-label="Izbornik"><span></span></button>
 </nav>
 <div class="site-bar" id="siteBar"></div>
 <div class="pager" id="pager">
@@ -656,7 +678,16 @@
   const current = () => goal !== null ? goal : Math.round(slide);
   const siteVisible = () => slideCur > .5 && section.getBoundingClientRect().bottom > 0;
 
+  // Izbornik na telefonu: ☰ otvara listu linkova, klik na link ili van nje je zatvara
+  const menuBtn = $('menuBtn');
+  function setMenu(open) {
+    nav.classList.toggle('open', open);
+    menuBtn.setAttribute('aria-expanded', open);
+  }
+  menuBtn.addEventListener('click', () => setMenu(!nav.classList.contains('open')));
+
   document.addEventListener('click', e => {
+    if (!nav.contains(e.target) || e.target.closest('.links a')) setMenu(false);
     const a = e.target.closest('[data-go]');
     if (!a) return;
     e.preventDefault();
@@ -760,7 +791,7 @@
     if (loader.scrollLeft) loader.scrollLeft = 0;
     // Slike strojeva klize brže od stranice (paralaksa)
     for (const p of parImgs) p.el.style.transform = `translateX(${(p.i - pos) * 22}vw)`;
-    nav.classList.toggle('show', pos > .55);
+    nav.classList.toggle('dark', pos <= .55);
     pager.classList.toggle('show', pos > .55);
     const active = Math.round(pos);
     if (goal !== null && Math.abs(slide - goal) < .02) goal = null;

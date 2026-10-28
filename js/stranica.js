@@ -1,4 +1,13 @@
 (() => {
+  // Izbornik na telefonu: ☰ otvara listu linkova, klik van nje ili Esc je zatvara
+  const top = document.querySelector('.top'), menuBtn = top && top.querySelector('.menu-btn');
+  if (menuBtn) {
+    const setMenu = open => { top.classList.toggle('open', open); menuBtn.setAttribute('aria-expanded', open); };
+    menuBtn.addEventListener('click', () => setMenu(!top.classList.contains('open')));
+    document.addEventListener('click', e => { if (!top.contains(e.target) || e.target.closest('nav a')) setMenu(false); });
+    addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+  }
+
   // Laserska linija prelazi cijelu širinu svoje slike
   const lasers = [...document.querySelectorAll('.laser')];
   const fit = () => lasers.forEach(l => l.style.setProperty('--w', l.parentElement.clientWidth + 'px'));
