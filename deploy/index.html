@@ -14,11 +14,21 @@
   html, body { margin: 0; height: 100%; background: #06080a; color: #eef2f5;
     font-family: 'Barlow', 'Segoe UI', Arial, sans-serif; }
   /* Visina sekcije: 100vh ekran + 150vh skrola za varenje + 5 × 100vh za klizanje kroz stranice sajta */
-  #weld { position: relative; height: 750vh; }
+  #weld { position: relative; height: 800vh; } /* + 0,5 ekrana pauze da se pročita naslov nakon varenja */
   #loader { --acc: #3fc3ff; position: sticky; top: 0; height: 100vh; overflow: hidden; background: #06080a; }
   .track { display: flex; width: 600%; height: 100%; will-change: transform; }
   .panel { position: relative; flex: none; width: calc(100% / 6); height: 100%; overflow: hidden; }
   #loader.done { --acc: #2ee87a; }
+  /* Telefon: bez "elastičnog" povlačenja preko ruba koje otkriva crnu pozadinu */
+  html, body { overscroll-behavior-y: none; }
+
+  #preload { position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center; gap: 18px;
+    background: #06080a; transition: opacity .6s, visibility .6s; }
+  #preload.gone { opacity: 0; visibility: hidden; }
+  #preload img { width: min(220px, 52vw); height: auto; }
+  .pl-bar { width: min(260px, 62vw); height: 2px; overflow: hidden; background: rgba(255, 255, 255, .1); }
+  .pl-bar i { display: block; width: 0; height: 100%; background: #e41720; box-shadow: 0 0 10px #e41720; transition: width .25s; }
+  .pl-txt { font: 600 11px/1 'IBM Plex Mono', Consolas, monospace; letter-spacing: .2em; text-transform: uppercase; color: #8a939c; }
   #scene { display: block; width: 100%; height: 100%; }
 
   .hint { position: absolute; left: 50%; bottom: 3.2%; transform: translateX(-50%); display: flex;
@@ -40,8 +50,15 @@
 
   .tl { position: absolute; left: 2.7%; top: 6.5%; }
   .lbl { color: var(--acc); font-weight: 700; font-size: clamp(10px, .8vw, 14px); letter-spacing: .04em; transition: color .3s; }
-  .tl h1 { margin: .55em 0 .25em; font-size: clamp(18px, 1.65vw, 30px); font-weight: 700; letter-spacing: .01em;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, .6); }
+  /* Glavna poruka prvog ekrana */
+  .tl h1 { margin: .22em 0 .18em; font: 700 clamp(44px, 6.4vw, 116px)/.88 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    text-transform: uppercase; letter-spacing: .005em; text-shadow: 0 4px 30px rgba(0, 0, 0, .75); }
+  .tl h1 span { display: block; color: #e41720; }
+  /* Naslov se otvara tek kad je var gotov, da ne pokriva animaciju */
+  .tl h1, .tl h1 span { clip-path: inset(-10% 100% -10% 0); transition: clip-path .9s cubic-bezier(.6, .1, .2, 1); }
+  #loader.done .tl h1, #loader.done .tl h1 span { clip-path: inset(-10% 0 -10% 0); }
+  #loader.done .tl h1 span { transition-delay: .35s; }
+  .tl .sub { font-size: clamp(12px, 1vw, 16px); color: #c9d0d6; letter-spacing: .12em; text-transform: uppercase; }
   .sub { color: #8a939c; font-size: clamp(9px, .75vw, 13px); letter-spacing: .03em; }
 
   .tr { position: absolute; left: 83.5%; top: 6.3%; color: var(--acc); font-weight: 600;
@@ -251,17 +268,24 @@
 </head>
 <body>
 
+<!-- Učitavanje: scena varenja kreće tek kad je cijela stranica učitana -->
+<div id="preload" role="status">
+  <img src="assets/logo.png" alt="CHI-TECH">
+  <div class="pl-bar"><i id="plFill"></i></div>
+  <div class="pl-txt"><span id="plPct">0</span>% · Lasersko varenje</div>
+</div>
+
 <section id="weld">
 <div id="loader">
 <div class="track" id="track">
 <div class="panel">
   <canvas id="scene"></canvas>
-  <div class="hint" id="hint"><div class="mouse"></div>Skrolaj</div>
+  <div class="hint" id="hint"><div class="mouse"></div>Skrolaj i vari</div>
   <div class="frame">
     <div class="tl">
-      <div class="lbl">CHI LASERI // 01</div>
-      <h1>Spajanje materijala</h1>
-      <div class="sub">Automatizovana sekvenca varenja</div>
+      <div class="lbl">CHI-TECH d.o.o. // Fiber laseri</div>
+      <h1>Lasersko varenje <span>CHI-TECH</span></h1>
+      <div class="sub">Skrolajte i zavarite spoj</div>
     </div>
     <div class="tr"><i class="on"></i><span id="trStatus">Poravnanje materijala</span></div>
 
@@ -385,7 +409,7 @@
       <h2>Stroj stoji? <em>Javite se.</em></h2>
       <p class="lead">Za ponudu, servis ili prijavu kvara pišite nam ili nazovite. Uz sjedište u Hrvatskoj imamo i predstavništvo za Srbiju u Šapcu.</p>
       <div class="btns">
-        <a class="btn primary" href="mailto:info@chitech.com.hr?subject=Prijava%20kvara">Prijava kvara</a>
+        <a class="btn primary" href="mailto:info@chitech.com.hr?subject=Prijava%20kvara">Prijavite kvar stroja</a>
       </div>
       <div class="social">
         <a href="https://www.facebook.com/Chi.tech.d.o.o/" target="_blank" rel="noopener">Facebook</a>
@@ -422,7 +446,7 @@
     <a href="#usluge" data-go="4">Usluge</a>
     <a href="#kontakt" data-go="5">Kontakt</a>
   </div>
-  <a class="btn primary" href="#kontakt" data-go="5">Prijava kvara</a>
+  <a class="btn primary" href="usluge/servisne-intervencije.html">Servis stroja</a>
   <button type="button" class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="navLinks" aria-label="Izbornik"><span></span></button>
 </nav>
 <div class="site-bar" id="siteBar"></div>
@@ -449,8 +473,23 @@
   const TORCH_X0 = 425, TORCH_WX = 730; // torch.png: lijeva ivica i x tačke varenja na izvornoj slici
   const AX = -0.45, AY = -0.893;      // osa pištolja (prema gore)
 
+  // Napredak učitavanja: slike scene + sve slike na stranici
+  const pageImgs = [...document.images];
+  let loaded = 0;
+  const total = 3 + pageImgs.length;
+  function tick() {
+    const p = Math.min(100, Math.round(++loaded / total * 100));
+    $('plPct').textContent = p;
+    $('plFill').style.width = p + '%';
+  }
+  pageImgs.forEach(i => {
+    if (i.complete) tick();
+    else { i.addEventListener('load', tick, { once: true }); i.addEventListener('error', tick, { once: true }); }
+  });
+  document.documentElement.style.overflow = 'hidden';
+
   const img = {};
-  const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { img[k] = i; r(); }; i.src = src; });
+  const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { img[k] = i; tick(); r(); }; i.src = src; });
 
   let W, H, DPR, sc, oy, camX = null;
   function resize() {
@@ -617,6 +656,8 @@
   const track = $('track'), nav = $('nav'), siteBar = $('siteBar');
   const PANELS = 6;     // scena varenja + 5 stranica sajta
   const WELD_VH = 1.5;  // koliko ekrana skrola traje varenje; svaka stranica traje još jedan ekran
+  const HOLD_VH = .5;   // pauza nakon varenja: otvara se naslov prije nego sajt uđe
+  const SITE_VH = WELD_VH + HOLD_VH;
   const navLinks = [...nav.querySelectorAll('.links a')];
   const parImgs = [...document.querySelectorAll('[data-par]')].map(el => ({ el, i: [...track.children].indexOf(el.closest('.panel')) }));
   let target = 0, prog = 0, finished = false, finishT = 0, lastScroll = -1e9;
@@ -672,7 +713,7 @@
   function goTo(i) {
     i = Math.max(0, Math.min(PANELS - 1, i));
     goal = i;
-    window.scrollTo({ top: section.offsetTop + (WELD_VH + i) * innerHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
+    window.scrollTo({ top: section.offsetTop + (SITE_VH + i) * innerHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
   // Uzastopni klikovi se nadovezuju i dok skrol još traje
   const current = () => goal !== null ? goal : Math.round(slide);
@@ -727,7 +768,7 @@
     }
     const vh = innerHeight, s = -section.getBoundingClientRect().top;
     target = Math.max(0, Math.min(1, s / (WELD_VH * vh)));
-    slide = Math.max(0, Math.min(PANELS - 1, (s - WELD_VH * vh) / vh));
+    slide = Math.max(0, Math.min(PANELS - 1, (s - SITE_VH * vh) / vh));
     lastScroll = performance.now();
   }
   addEventListener('scroll', readScroll, { passive: true });
@@ -838,7 +879,7 @@
   function jumpToStart() {
     if (start < 0 || freeze !== null) return;
     loader.scrollLeft = 0;
-    window.scrollTo(0, section.offsetTop + (WELD_VH + start + 1) * innerHeight);
+    window.scrollTo(0, section.offsetTop + (SITE_VH + start + 1) * innerHeight);
     readScroll();
     prog = target;
     slideCur = slide;
@@ -850,8 +891,12 @@
   measureReveal();
   if (document.fonts) document.fonts.ready.then(measureReveal);
   addEventListener('load', measureReveal);
-  Promise.all([load('bg', 'assets/bg.jpg'), load('weld', 'assets/weld.png'), load('torch', 'assets/torch.png')])
+  const pageLoaded = new Promise(r => document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true }));
+  Promise.all([load('bg', 'assets/bg.jpg'), load('weld', 'assets/weld.png'), load('torch', 'assets/torch.png'), pageLoaded])
     .then(() => {
+      document.documentElement.style.overflow = '';
+      $('preload').classList.add('gone');
+      jumpToStart();
       loader.classList.add('ready');
       readScroll();
       prog = target;
